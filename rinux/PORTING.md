@@ -125,7 +125,7 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 87 | `kernel/sched/sched.h` (uclamp buckets): the clamp-value to bucket mapping with its rounded width, tests for the edges, the top bucket and monotonicity | done |
 | 88 | `include/linux/sched/prio.h` and `kernel/sched/syscalls.c` (`__normal_prio`): the priority ranges, nice conversions and the normal priority from policy, with tests for ranges, nice, real-time and deadline ordering | done |
 | 89 | `kernel/sched/completion.c` (non-blocking part): counting completions, complete_all staying in force, and try-wait, with tests including concurrent completers; blocking waits wait for the scheduler | partial |
-| 90 | `kernel/sched/cpupri.c` (level mapping) and `kernel/sched/cpupri.h`: the task priority to CPU level conversion, with tests for the special levels, the real-time reversal and monotonicity | partial |
+| 90 | `kernel/sched/cpupri.c` and `cpupri.h`: the level conversion, per-CPU level set, and the find over lower levels without a fitness function, with tests for the special levels, reversal, monotonicity, moving CPUs between levels, and the allowed-CPU choice | partial |
 | 91+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
