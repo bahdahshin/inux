@@ -50,6 +50,7 @@ pub mod ida;
 pub mod interval_tree;
 pub mod iomap_copy;
 pub mod iomem_copy;
+pub mod sched_fair;
 pub mod iommu_helper;
 pub mod kfifo;
 pub mod kstrtox;

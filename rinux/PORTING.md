@@ -113,7 +113,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 75 | `lib/iomem_copy.c`: I/O memory fill and copies as byte operations over closures, with tests for fill, round trip and empty ranges | done |
 | 76 | `lib/extable.c`: the exception table sort and binary search over absolute addresses, with tests for lookup hits and misses and a shuffled 1000-entry table | partial |
 | 77 | `lib/decompress.c`: the compression magic table and `decompress_method()`, with tests for each magic and short or unknown input; the decompressors wait | partial |
-| 78+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 78 | `kernel/sched/fair.c` (weights and vruntime delta) and the CFS weight tables from `kernel/sched/core.c`: exact-arithmetic tests for the tables, the inverse, scaling and the nice-0 identity; the runqueue logic waits for the scheduler | partial |
+| 79+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -476,6 +477,8 @@ or `test` (a C test file ported to Rust tests).
 | `arch/x86/entry/entry_64.S` | `kernel/src/arch/x86/kernel/process.rs` | partial | __switch_to_asm and the new-thread trampoline (ret_from_fork_asm); also the idtentry stubs in entry/ |
 | `arch/x86/include/asm/switch_to.h` | `kernel/src/arch/x86/kernel/process.rs` | partial | inactive_task_frame layout, kthread_frame_init |
 | `arch/x86/kernel/process.c` | `kernel/src/arch/x86/kernel/process.rs` | partial | copy_thread for kernel threads and `start_thread()` (ring-3 entry via iretq); FPU, FS/GS and TLS pending |
+| `kernel/sched/fair.c` (weights and delta) | `lib/src/sched_fair.rs` | partial | the CFS load-weight tables (`sched_prio_to_weight`, `sched_prio_to_wmult`, copied by script), `scale_load`/`scale_load_down`, `__update_inv_weight()`, `__calc_delta()` and `calc_delta_fair()`; the runqueue, pick and enqueue logic waits for the kernel's scheduler |
+| `kernel/sched/core.c` (weight tables) | `lib/src/sched_fair.rs` | done | `sched_prio_to_weight` and `sched_prio_to_wmult`, extracted from the C source |
 | `kernel/sched/core.c` | `kernel/src/kernel/sched/core.rs` | partial | runqueue, __schedule/context_switch/finish_task_switch, schedule(), wake_up_new_task, sched_tick, do_exit, kernel_thread, cpu idle loop, sched_init; round-robin only, one CPU, no CFS/EEVDF, load balancing or mm switch |
 | `kernel/sched/rt.c` | `kernel/src/kernel/sched/core.rs` | partial | RR_TIMESLICE round-robin rotation |
 | `kernel/kthread.c` | `kernel/src/kernel/kthread.rs` | partial | kthread_run; kthread_stop, parking and kthreadd pending |
