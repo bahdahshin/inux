@@ -69,7 +69,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 30 | `lib/seq_buf.c`: the bounded text buffer with its overflow marker, plus its formatted writes and hex dump; the seq_file, printk and user-copy parts wait for those subsystems | partial |
 | 31 | `lib/iommu-helper.c`: the free-area allocator that keeps allocations from crossing a power-of-two boundary, with the header's span and device-index helpers; host tests cover allocation, boundary skipping and exhaustion | done |
 | 32 | `lib/check_signature.c`: compare a BIOS-style signature with bytes read through a caller-supplied reader, with host tests | done |
-| 33+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 33 | `lib/libgcc` helpers: the 64-bit shifts and compares GCC calls on 32-bit targets (`ashldi3`, `ashrdi3`, `lshrdi3`, `cmpdi2`, `ucmpdi2`), as the same halves algorithm, with host tests against the native operators | done |
+| 34+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -575,6 +576,12 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/seq_buf.h` | `lib/src/seq_buf.rs` | partial | the buffer, used/left and overflow helpers; the `DECLARE_SEQ_BUF` macro is a constructor |
 | `lib/iommu-helper.c` | `lib/src/iommu_helper.rs` | done | `iommu_area_alloc()` returns `Option<usize>` for the C `-1`; `iommu_is_span_boundary()` and `iommu_device_max_index()` from the header |
 | `lib/check_signature.c` | `lib/src/check_signature.rs` | done | the byte comparison over a caller-supplied `read(offset)`; the `ioremap` and `readb()` access stays with the caller |
+| `lib/ashldi3.c` | `lib/src/libgcc.rs` | done | `ashldi3()`; the 32-bit halves algorithm as in C, shift counts masked to 6 bits |
+| `lib/ashrdi3.c` | `lib/src/libgcc.rs` | done | `ashrdi3()`, arithmetic shift |
+| `lib/lshrdi3.c` | `lib/src/libgcc.rs` | done | `lshrdi3()`, logical shift |
+| `lib/cmpdi2.c` | `lib/src/libgcc.rs` | done | `cmpdi2()`, signed compare returning 0/1/2 |
+| `lib/ucmpdi2.c` | `lib/src/libgcc.rs` | done | `ucmpdi2()`, unsigned compare returning 0/1/2 |
+| `include/linux/libgcc.h` | `lib/src/libgcc.rs` | done | `DWunion` as split halves |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |

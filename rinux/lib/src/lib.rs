@@ -40,6 +40,7 @@ pub mod hweight;
 pub mod iommu_helper;
 pub mod kfifo;
 pub mod kstrtox;
+pub mod libgcc;
 pub mod linear_ranges;
 pub mod list;
 pub mod llist;
