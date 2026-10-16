@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
+//! Cipher and hash primitives from `lib/crypto/`.
+//!
+//! The hash modules sit at the crate root (`sha1`, `sha256`, `md5`, ...), as
+//! they were added first. The cipher cores live here.
+
+pub mod arc4;
