@@ -81,7 +81,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 42 | `lib/crypto/mpi/` limb helpers: `mpihelp_cmp()`, `mpihelp_add_n()` and `mpihelp_sub_n()`, checked against 128-bit arithmetic | done |
 | 43 | `lib/crypto/mpi/` shifts: `mpihelp_lshift()` and `mpihelp_rshift()`, checked against 128-bit shifts | done |
 | 44 | `lib/crypto/mpi/` multiply by one limb: `mpihelp_mul_1()`, `mpihelp_addmul_1()` and `mpihelp_submul_1()`, checked against limb-by-limb 128-bit arithmetic | done |
-| 45+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 45 | `lib/crypto/mpi/mpi-cmp.c` and the `Mpi` object: signed comparison over a borrowed limb view, with normalisation and host tests following each branch | partial |
+| 46+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -616,6 +617,9 @@ or `test` (a C test file ported to Rust tests).
 | `lib/crypto/mpi/generic_mpih-mul1.c` | `lib/src/crypto/mpi_mul.rs` | done | `mpihelp_mul_1()`, storing the product and returning the carry limb |
 | `lib/crypto/mpi/generic_mpih-mul2.c` | `lib/src/crypto/mpi_mul.rs` | done | `mpihelp_addmul_1()`, adding the product into `res` |
 | `lib/crypto/mpi/generic_mpih-mul3.c` | `lib/src/crypto/mpi_mul.rs` | done | `mpihelp_submul_1()`, subtracting the product from `res` |
+| `lib/crypto/mpi/mpi-cmp.c` | `lib/src/crypto/mpi_obj.rs` | done | `mpi_cmp()` and `mpi_cmp_ui()` on the `Mpi` view |
+| `include/linux/mpi.h` (`struct gcry_mpi`) | `lib/src/crypto/mpi_obj.rs` | partial | `Mpi` borrows its limbs; `alloced`, flags and the allocating constructors wait for an allocator |
+| `lib/crypto/mpi/mpi-bit.c` (`mpi_normalize`) | `lib/src/crypto/mpi_obj.rs` | partial | `Mpi::normalize()`; the bit-count and shift functions of mpi-bit.c are not ported |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |

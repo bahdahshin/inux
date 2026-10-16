@@ -8,4 +8,5 @@ pub mod arc4;
 pub mod chacha;
 pub mod mpi;
 pub mod mpi_mul;
+pub mod mpi_obj;
 pub mod mpi_shift;
