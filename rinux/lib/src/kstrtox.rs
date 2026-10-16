@@ -20,7 +20,9 @@
 use crate::ctype::{_tolower, isdigit, isxdigit};
 use crate::errno::{EINVAL, ERANGE, Result};
 use crate::math::int_pow;
-use crate::uaccess::{KSTRTO32_BUF, KSTRTO64_BUF, KSTRTOBOOL_BUF, UserMemory, kstrto_copy};
+use crate::uaccess::{
+    KSTRTO8_BUF, KSTRTO16_BUF, KSTRTO32_BUF, KSTRTO64_BUF, KSTRTOBOOL_BUF, UserMemory, kstrto_copy,
+};
 
 /// Set in the return value of [`parse_integer_limit`] when the value overflowed.
 pub const KSTRTOX_OVERFLOW: u32 = 1 << 31;
@@ -367,4 +369,48 @@ pub fn kstrtoint_from_user(
 pub fn kstrtobool_from_user(user: &impl UserMemory, src: usize, count: usize) -> Result<bool> {
     let (buf, len) = kstrto_copy::<KSTRTOBOOL_BUF>(user, src, count)?;
     kstrtobool(&buf[..len])
+}
+
+/// `kstrtou16_from_user()`: copies at most 18 bytes, as [`kstrtou16`] takes.
+pub fn kstrtou16_from_user(
+    user: &impl UserMemory,
+    src: usize,
+    count: usize,
+    base: u32,
+) -> Result<u16> {
+    let (buf, len) = kstrto_copy::<KSTRTO16_BUF>(user, src, count)?;
+    kstrtou16(&buf[..len], base)
+}
+
+/// `kstrtos16_from_user()`: the same copy as [`kstrtou16_from_user`].
+pub fn kstrtos16_from_user(
+    user: &impl UserMemory,
+    src: usize,
+    count: usize,
+    base: u32,
+) -> Result<i16> {
+    let (buf, len) = kstrto_copy::<KSTRTO16_BUF>(user, src, count)?;
+    kstrtos16(&buf[..len], base)
+}
+
+/// `kstrtou8_from_user()`: copies at most 10 bytes, as [`kstrtou8`] takes.
+pub fn kstrtou8_from_user(
+    user: &impl UserMemory,
+    src: usize,
+    count: usize,
+    base: u32,
+) -> Result<u8> {
+    let (buf, len) = kstrto_copy::<KSTRTO8_BUF>(user, src, count)?;
+    kstrtou8(&buf[..len], base)
+}
+
+/// `kstrtos8_from_user()`: the same copy as [`kstrtou8_from_user`].
+pub fn kstrtos8_from_user(
+    user: &impl UserMemory,
+    src: usize,
+    count: usize,
+    base: u32,
+) -> Result<i8> {
+    let (buf, len) = kstrto_copy::<KSTRTO8_BUF>(user, src, count)?;
+    kstrtos8(&buf[..len], base)
 }

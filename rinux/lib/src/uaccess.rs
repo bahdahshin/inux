@@ -132,6 +132,8 @@ pub(crate) fn kstrto_copy<const N: usize>(
 /// NUL.
 pub(crate) const KSTRTO64_BUF: usize = 1 + 64 + 1 + 1;
 pub(crate) const KSTRTO32_BUF: usize = 1 + 32 + 1 + 1;
+pub(crate) const KSTRTO16_BUF: usize = 1 + 16 + 1 + 1;
+pub(crate) const KSTRTO8_BUF: usize = 1 + 8 + 1 + 1;
 /// `kstrtobool_from_user()`: longest word needed to tell booleans apart.
 pub(crate) const KSTRTOBOOL_BUF: usize = 4;
 

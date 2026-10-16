@@ -152,7 +152,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 115 | the allocating helpers behind an `alloc` cargo feature (`lib/src/alloc_helpers.rs`): `kasprintf()`, `match_strdup()` and `bitmap_alloc()`/`bitmap_zalloc()`, with the lib crate still allocation-free by default; this unblocks the allocator-blocked rows, and `devm_*()` and the user-copy wrappers remain | done |
 | 116 | `lib/src/printk.rs`: the log levels and a `Sink` that lib functions print through, one line at a time, so the lib needs no global state; the kernel passes a sink that calls its `printk()`. `print_hex_dump()` uses it, with the address, offset and none prefixes and the line limit; host tests check the rows, prefixes, levels and truncation | done |
 | 117 | `lib/src/uaccess.rs`: the `UserMemory` trait (`copy_from_user()` and `copy_to_user()` returning the bytes not copied), `FlatUser` as a flat user address space, and the byte-wise `strncpy_from_user_mem()`, `strnlen_user_mem()` and `check_zeroed_user_mem()`; `kstrto*_from_user()` for the 64- and 32-bit integers and the boolean; the kernel implements `UserMemory` over the task's address space with the fault fixup | done |
-| 118+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 118 | `lib/kstrtox.c`: the 16- and 8-bit `kstrtou16_from_user()`, `kstrtos16_from_user()`, `kstrtou8_from_user()` and `kstrtos8_from_user()`, with the copy sized as in C and tests for the range and fault rules | done |
+| 119+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -257,9 +258,9 @@ or `test` (a C test file ported to Rust tests).
 | `lib/string_helpers.c` | `lib/src/string.rs` | partial | `memcpy_and_pad()`, `skip_spaces()`, `string_unescape()` and `string_escape_mem()` (space/special/null/octal/hex with the NP/NA/NAP pass-through and `only`/append classes); the unit/size helpers pending |
 | `include/linux/string_helpers.h` | `lib/src/string.rs` | partial | the `UNESCAPE_*` and `ESCAPE_*` flags |
 | string escape/unescape tests | `lib/tests/string_escape_kunit.rs` | test | per-class checks, `only`/append, truncation, and an all-bytes escape/unescape round-trip |
-| `lib/kstrtox.c` | `lib/src/kstrtox.rs` | partial | the `*_from_user()` helpers for the 64- and 32-bit integers and the boolean are over `UserMemory`; the 16- and 8-bit ones wait for those widths |
+| `lib/kstrtox.c` | `lib/src/kstrtox.rs` | done | every `kstrto*()` and `kstrto*_from_user()` over `UserMemory`, including the 16- and 8-bit forms and `kstrtobool` |
 | `lib/kstrtox.h` | `lib/src/kstrtox.rs` | done | |
-| `include/linux/kstrtox.h` | `lib/src/kstrtox.rs` | partial | the `*_from_user()` helpers as for `lib/kstrtox.c`; `simple_strto*()` are in `lib/src/vsprintf.rs` |
+| `include/linux/kstrtox.h` | `lib/src/kstrtox.rs` | done | the `kstrto*()` and `kstrto*_from_user()` helpers as for `lib/kstrtox.c`; `simple_strto*()` are in `lib/src/vsprintf.rs` |
 | `lib/sort.c` | `lib/src/sort.rs` | partial | `*_nonatomic()` wait for `cond_resched()` |
 | `include/linux/sort.h` | `lib/src/sort.rs` | partial | as `lib/sort.c` |
 | `lib/bsearch.c` | `lib/src/bsearch.rs` | done | |

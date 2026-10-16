@@ -100,3 +100,46 @@ fn booleans_read_the_common_words() {
         assert_eq!(kstrtobool_from_user(u, BASE, 5), Err(EINVAL))
     });
 }
+
+use rinux_lib::errno::ERANGE;
+use rinux_lib::kstrtox::{
+    kstrtos8, kstrtos8_from_user, kstrtos16, kstrtos16_from_user, kstrtou8, kstrtou8_from_user,
+    kstrtou16, kstrtou16_from_user,
+};
+
+#[test]
+fn narrow_unsigned_checks_the_range() {
+    assert_eq!(kstrtou8("255", 10), Ok(255));
+    assert_eq!(kstrtou8("256", 10), Err(ERANGE));
+    assert_eq!(kstrtou16("65535", 10), Ok(65535));
+    assert_eq!(kstrtou16("65536", 10), Err(ERANGE));
+    assert_eq!(kstrtou8("-1", 10), Err(EINVAL));
+}
+
+#[test]
+fn narrow_signed_checks_both_ends() {
+    assert_eq!(kstrtos8("-128", 10), Ok(-128));
+    assert_eq!(kstrtos8("128", 10), Err(ERANGE));
+    assert_eq!(kstrtos8("-129", 10), Err(ERANGE));
+    assert_eq!(kstrtos16("-32768", 10), Ok(-32768));
+    assert_eq!(kstrtos16("32768", 10), Err(ERANGE));
+}
+
+#[test]
+fn narrow_from_user_copies_and_parses() {
+    with_user(b"200\n", |u| {
+        assert_eq!(kstrtou8_from_user(u, BASE, 4, 10), Ok(200))
+    });
+    with_user(b"-100", |u| {
+        assert_eq!(kstrtos8_from_user(u, BASE, 4, 10), Ok(-100))
+    });
+    with_user(b"40000", |u| {
+        assert_eq!(kstrtou16_from_user(u, BASE, 5, 10), Ok(40000))
+    });
+    with_user(b"-300", |u| {
+        assert_eq!(kstrtos16_from_user(u, BASE, 4, 10), Ok(-300))
+    });
+    with_user(b"300", |u| {
+        assert_eq!(kstrtou8_from_user(u, BASE, 3, 10), Err(ERANGE))
+    });
+}
