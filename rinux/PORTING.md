@@ -144,7 +144,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 107 | `lib/list_debug.c`: the `list_add` and `list_del` consistency checks, each returning the first failed check as a `ListCorruption` (in C order) with the poison values; the printk and stack dump are left to the caller; host tests cover each check and the valid cases | done |
 | 108 | `lib/debug_locks.c`: the global `debug_locks` and `debug_locks_silent` switches as a `DebugLocks` value (with `DEBUG_LOCKS` as the kernel instance); `debug_locks_off()` returns true only for the first switch-off that is not silent, runs the console action passed in, and a silent switch-off still turns debugging off; host tests cover each case | done |
 | 109 | `lib/atomic64.c`: the 64-bit atomics (`read`, `set`, the add/sub/and/or/xor forms in fetch and return variants, `dec_if_positive`, `cmpxchg`, `xchg`, `fetch_add_unless`) over `AtomicI64` with no lock table, since Rust atomics need no spinlock fallback; host tests cover each op and a 4-thread counter | done |
-| 110+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 110 | `lib/dim/dim.c`, `lib/dim/rdma_dim.c` and the DIM helpers of `include/linux/dim.h`: the sample arithmetic (`dim_calc_stats()`, `BIT_GAP`, `IS_SIGNIFICANT_DIFF`), the park/turn walk, and the RDMA moderation state machine (`rdma_dim()`), with hand-computed windows; the consumer's `schedule_work()` is the returned flag, and `lib/dim/net_dim.c` waits | partial |
+| 111+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -774,3 +775,7 @@ or `test` (a C test file ported to Rust tests).
 | debug locks tests | `lib/tests/debug_locks_test.rs` | test | first and later switch-offs, silent switch-off, the no-op repeat, and the silent setting round trip |
 | `lib/atomic64.c` | `lib/src/atomic64.rs` | done | the generic spinlock fallback is replaced by `AtomicI64`; `fetch_*` returns the old value and `*_return` the new one |
 | atomic64 tests | `lib/tests/atomic64_test.rs` | test | each operation's result, `dec_if_positive` at zero, `add_unless` and `inc_not_zero`, and a 4-thread count |
+| `lib/dim/dim.c` | `lib/src/dim.rs` | done | `dim_calc_stats()`, `dim_on_top()`, `dim_turn()`, `dim_park_on_top()` and `dim_park_tired()`; the `u32` wrap of the event counter and the 32-bit `BIT_GAP` are kept as C computes them |
+| `lib/dim/rdma_dim.c` | `lib/src/dim.rs` | done | `Dim::rdma_dim()` and its decision, step and stats-compare helpers, with the same early exits as the C switch |
+| `include/linux/dim.h` (DIM helpers) | `lib/src/dim.rs` | partial | the enums, `struct dim`, the sample helpers and the macros; the net DIM profile API and the irq-moderation calls wait for `net/` |
+| DIM tests | `lib/tests/dim_test.rs` | test | the 10% significance rule, the window arithmetic, the turn and park rules, and the RDMA windows: a climb after a 10%+ gain, the edge turn, the start sample kept before 64 events, and the u16 counter wrap |
