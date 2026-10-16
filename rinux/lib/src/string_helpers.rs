@@ -11,7 +11,7 @@
 //! `kasprintf_strarray()` and the other allocating helpers, the
 //! `match_string()` family, and `memcpy_and_pad()`'s fortify hooks.
 
-use crate::errno::{EINVAL, Result};
+use crate::errno::{EINVAL, ENOENT, Result};
 use crate::hexdump::hex_to_bin;
 
 /// `STRING_UNITS_10`: powers of 1000 (SI).
@@ -567,5 +567,44 @@ pub fn strreplace(s: &mut [u8], old: u8, new: u8) {
         if *c == old {
             *c = new;
         }
+    }
+}
+
+/// `parse_int_array()`: parses a comma-separated list of integers with
+/// [`get_options`]. Element 0 of the result is the count, and the integers
+/// follow, as C's array does. Returns `ENOENT` when the string has none.
+///
+/// Behind the `alloc` feature, since the result is a `Vec`.
+#[cfg(feature = "alloc")]
+pub fn parse_int_array(buf: &[u8]) -> Result<alloc::vec::Vec<i32>> {
+    use crate::cmdline::get_options;
+
+    // Validation pass: with nints of 0, element 0 gets the count.
+    let mut count = [0i32; 1];
+    get_options(buf, 0, &mut count);
+    let nints = count[0];
+    if nints == 0 {
+        return Err(ENOENT);
+    }
+
+    let mut ints = alloc::vec![0i32; nints as usize + 1];
+    get_options(buf, nints + 1, &mut ints);
+    Ok(ints)
+}
+
+#[cfg(all(test, feature = "alloc"))]
+mod parse_int_array_tests {
+    use super::*;
+
+    #[test]
+    fn comma_separated_integers_are_counted_and_listed() {
+        assert_eq!(parse_int_array(b"1,2,3").unwrap(), alloc::vec![3, 1, 2, 3]);
+        assert_eq!(parse_int_array(b"-4").unwrap(), alloc::vec![1, -4]);
+    }
+
+    #[test]
+    fn a_string_with_no_integers_is_enoent() {
+        assert_eq!(parse_int_array(b""), Err(ENOENT));
+        assert_eq!(parse_int_array(b"abc"), Err(ENOENT));
     }
 }
