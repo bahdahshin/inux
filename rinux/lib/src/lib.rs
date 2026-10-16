@@ -15,6 +15,7 @@
 #![no_std]
 
 pub mod bug;
+pub mod bust_spinlocks;
 pub mod check_signature;
 pub mod clz_ctz;
 pub mod clz_tab;

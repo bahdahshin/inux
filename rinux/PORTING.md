@@ -72,7 +72,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 33 | `lib/libgcc` helpers: the 64-bit shifts and compares GCC calls on 32-bit targets (`ashldi3`, `ashrdi3`, `lshrdi3`, `cmpdi2`, `ucmpdi2`), as the same halves algorithm, with host tests against the native operators | done |
 | 34 | `lib/net_utils.c` and `lib/clz_tab.c`: MAC address parsing, and the byte bit-length table, each with host tests | done |
 | 35 | `lib/memcat_p.c`: concatenate two pointer arrays into a caller buffer, with host tests | done |
-| 36+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 36 | `lib/bust_spinlocks.c`: the nested oops counter, with the console and klogd hooks passed in, and a host test | done |
+| 37+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -588,6 +589,7 @@ or `test` (a C test file ported to Rust tests).
 | `lib/clz_tab.c` | `lib/src/clz_tab.rs` | done | the 256-byte table built at compile time from its rule (bit length of the index) |
 | `lib/memcat_p.c` | `lib/src/memcat_p.rs` | done | `memcat_p()` over slices into a caller buffer; the NULL terminators become slice ends |
 | `include/linux/string.h` (`memcat_p`) | `lib/src/memcat_p.rs` | done | the macro is the function |
+| `lib/bust_spinlocks.c` | `lib/src/bust_spinlocks.rs` | done | the oops counter; the console unblank and klogd wake are passed in as closures until those subsystems exist |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
