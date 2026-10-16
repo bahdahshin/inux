@@ -75,7 +75,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 36 | `lib/bust_spinlocks.c`: the nested oops counter, with the console and klogd hooks passed in, and a host test | done |
 | 37 | `lib/muldi3.c`: the 64-bit multiply from 32-bit halves, with host tests against the native operators | done |
 | 38 | `lib/min_heap.c` and `include/linux/min_heap.h`: a generic binary min-heap over a caller slice, with the header's algorithms and host tests for order, pop-push, delete and the empty and full cases | done |
-| 39+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 39 | `lib/memregion.c` and the `ida_*` part of `lib/idr.c`: lowest-free-id allocation over a fixed bitmap, with host tests | partial |
+| 40+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -595,6 +596,8 @@ or `test` (a C test file ported to Rust tests).
 | `lib/muldi3.c` | `lib/src/muldi3.rs` | done | `umul_ppmm()`, `umulsidi3()` and `muldi3()` as the same 16-bit-piece algorithm; the cross-term sum wraps as the C does |
 | `lib/min_heap.c` | `lib/src/min_heap.rs` | done | `MinHeap<T>` over a caller slice with a `less` closure; the header's sift, heapify, pop, pop-push, push and delete algorithms, step for step |
 | `include/linux/min_heap.h` | `lib/src/min_heap.rs` | done | the byte-offset and `min_heap_callbacks` machinery becomes the generic type and the closure |
+| `lib/memregion.c` | `lib/src/memregion.rs` | done | `memregion_alloc()` and `memregion_free()` take the allocator as a parameter instead of a static |
+| `lib/idr.c` (`ida_*`) | `lib/src/ida.rs` | partial | `Ida<N>`: `ida_alloc()`, `ida_alloc_range()` and `ida_free()` over a fixed bitmap; the radix tree and the IDR pointer mapping wait |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
