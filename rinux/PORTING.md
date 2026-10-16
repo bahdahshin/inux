@@ -114,7 +114,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 76 | `lib/extable.c`: the exception table sort and binary search over absolute addresses, with tests for lookup hits and misses and a shuffled 1000-entry table | partial |
 | 77 | `lib/decompress.c`: the compression magic table and `decompress_method()`, with tests for each magic and short or unknown input; the decompressors wait | partial |
 | 78 | `kernel/sched/fair.c` (weights and vruntime delta) and the CFS weight tables from `kernel/sched/core.c`: exact-arithmetic tests for the tables, the inverse, scaling and the nice-0 identity; the runqueue logic waits for the scheduler | partial |
-| 79+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 79 | `kernel/sched/fair.c` (EEVDF accounting): `avg_vruntime()`, `vruntime_eligible()` and `update_deadline()` over the weighted accumulators, checked against exact rational arithmetic over random entities; the zero_vruntime update and the runqueue wait for the scheduler | partial |
+| 80+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
