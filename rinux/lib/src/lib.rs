@@ -50,6 +50,7 @@ pub mod math;
 pub mod md5;
 pub mod memcat_p;
 pub mod memweight;
+pub mod min_heap;
 pub mod mktime;
 pub mod muldi3;
 pub mod net_utils;
