@@ -110,7 +110,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 72 | `lib/usercopy.c`: `check_zeroed_user()` with the early exit and the fault result, with tests; the copy wrappers wait for the user-access layer | partial |
 | 73 | `lib/stmp_device.c` and `include/linux/stmp_device.h`: the i.MX/STMP block reset sequence over a register trait, with a simulated block that gates its clock on soft reset, and a stuck-reset timeout test | done |
 | 74 | `lib/iomap_copy.c`: MMIO block copies of 32- and 64-bit words through register closures, with tests for order, read-back and empty copies | done |
-| 75+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 75 | `lib/iomem_copy.c`: I/O memory fill and copies as byte operations over closures, with tests for fill, round trip and empty ranges | done |
+| 76+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -686,6 +687,7 @@ or `test` (a C test file ported to Rust tests).
 | `lib/strnlen_user.c` | `lib/src/strnlen_user.rs` | partial | `strnlen_user()` with C's convention (length plus NUL, count plus one when too long, 0 on fault); the word search and the user-access layer wait for the kernel |
 | `lib/usercopy.c` | `lib/src/usercopy.rs` | partial | `check_zeroed_user()` as a byte check with C's early exit at the first non-zero byte and its -EFAULT; the `_copy_from_user` and `_copy_to_user` wrappers are the kernel's user-access layer and wait |
 | `lib/iomap_copy.c` | `lib/src/iomap_copy.rs` | done | `iowrite32_copy()`, `ioread32_copy()` and `iowrite64_copy()` with the raw register accesses as closures; word-at-a-time, one access per word as C |
+| `lib/iomem_copy.c` | `lib/src/iomem_copy.rs` | done | `memset_io()`, `memcpy_fromio()` and `memcpy_toio()` as byte operations over closures; the word-width bus accesses are left to the kernel's accessors |
 | `lib/stmp_device.c` | `lib/src/stmp_device.rs` | done | `stmp_reset_block()` over a `StmpRegs` trait for the register access and the 1 µs delay; the SET/CLR offsets and gate bits are the header's; ETIMEDOUT on a stuck poll |
 | `include/linux/stmp_device.h` | `lib/src/stmp_device.rs` | done | the offsets and bit masks |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
