@@ -39,6 +39,7 @@ pub mod cpupri;
 pub mod crc;
 pub mod crypto;
 pub mod ctype;
+pub mod debug_locks;
 pub mod dec_and_lock;
 pub mod decompress;
 pub mod dynamic_queue_limits;
