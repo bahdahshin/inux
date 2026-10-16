@@ -79,6 +79,7 @@ pub mod sha1;
 pub mod sha256;
 pub mod siphash;
 pub mod sort;
+pub mod stmp_device;
 pub mod string;
 pub mod strncpy_from_user;
 pub mod strnlen_user;
