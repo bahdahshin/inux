@@ -19,6 +19,7 @@ pub struct GenPool<'a> {
     start_addr: u64,
     order: u32,
     avail_units: usize,
+    phys_addr: u64,
 }
 
 impl<'a> GenPool<'a> {
@@ -38,6 +39,7 @@ impl<'a> GenPool<'a> {
             start_addr,
             order,
             avail_units: nunits,
+            phys_addr: 0,
         }
     }
 
@@ -88,6 +90,26 @@ impl<'a> GenPool<'a> {
     /// `gen_pool_avail()`: the number of free bytes.
     pub fn avail(&self) -> usize {
         self.avail_units << self.order
+    }
+
+    /// Sets the physical address of the chunk's first byte, as the `phys`
+    /// argument of `gen_pool_add_virt()` does.
+    pub fn with_phys_addr(mut self, phys_addr: u64) -> Self {
+        self.phys_addr = phys_addr;
+        self
+    }
+
+    /// `gen_pool_virt_to_phys()`: the physical address of virtual `addr`, or
+    /// `None` where C returns `-1` for an address outside the chunk.
+    pub fn virt_to_phys(&self, addr: u64) -> Option<u64> {
+        if self.nunits == 0 || addr < self.start_addr {
+            return None;
+        }
+        let off = addr - self.start_addr;
+        if off >= self.size() as u64 {
+            return None;
+        }
+        Some(self.phys_addr + off)
     }
 
     /// `gen_pool_has_addr()`: whether `[start, start + size)` lies inside the
