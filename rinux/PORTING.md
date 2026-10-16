@@ -134,7 +134,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 97 | `lib/dynamic_queue_limits.c` and the inline helpers in `include/linux/dynamic_queue_limits.h`: the byte-queue limit (`queued`, `avail`, `completed`, `reset`, `new`), with the starved and busy paths, the bounds, the object limit, and the BUG_ON; time is passed in as `now`. The stall detector is not ported yet (`stall_thrs` stays 0) | partial |
 | 98 | `lib/klist.c` and `include/linux/klist.h`: the klist list of reference-counted nodes, with add head/tail/before/behind, `klist_del` that unlinks only at zero references, and the iterator that holds a reference on its current node; nodes are index-linked in a caller slice; the blocking `klist_remove()` and the `get`/`put` callbacks are not ported | partial |
 | 99 | `lib/test_ida.c` (the parts that fit a fixed bitmap): the straightforward alloc checks, leaf fill-and-free, exceptional-entry conversion, bad frees, and the existence checks; `ida_check_max()` (ids near 2^31), `ida_destroy()`, `ida_is_empty()` and the tree-based `find_first_range()` wait for an IDA that grows | partial |
-| 100+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 100 | `lib/test_memcat_p.c`: the KUnit-style check of `memcat_p()` ported in full: 127-element arrays, the total, the magic, the length, and the order; the arrays are slices, so no NULL terminator | done |
+| 101+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
