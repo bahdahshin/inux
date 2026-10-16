@@ -5,6 +5,7 @@
 //! they were added first. The cipher cores live here.
 
 pub mod arc4;
+pub mod blake2b;
 pub mod blake2s;
 pub mod chacha;
 pub mod hash_info;
