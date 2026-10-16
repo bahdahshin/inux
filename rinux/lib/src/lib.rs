@@ -23,6 +23,7 @@ pub mod clz_tab;
 pub mod cpudl;
 pub mod cputime;
 pub mod dim;
+pub mod zstd_error;
 
 pub mod argv_split;
 pub mod atomic64;

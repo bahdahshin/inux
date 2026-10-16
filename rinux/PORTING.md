@@ -145,7 +145,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 108 | `lib/debug_locks.c`: the global `debug_locks` and `debug_locks_silent` switches as a `DebugLocks` value (with `DEBUG_LOCKS` as the kernel instance); `debug_locks_off()` returns true only for the first switch-off that is not silent, runs the console action passed in, and a silent switch-off still turns debugging off; host tests cover each case | done |
 | 109 | `lib/atomic64.c`: the 64-bit atomics (`read`, `set`, the add/sub/and/or/xor forms in fetch and return variants, `dec_if_positive`, `cmpxchg`, `xchg`, `fetch_add_unless`) over `AtomicI64` with no lock table, since Rust atomics need no spinlock fallback; host tests cover each op and a 4-thread counter | done |
 | 110 | `lib/dim/dim.c`, `lib/dim/rdma_dim.c` and the DIM helpers of `include/linux/dim.h`: the sample arithmetic (`dim_calc_stats()`, `BIT_GAP`, `IS_SIGNIFICANT_DIFF`), the park/turn walk, and the RDMA moderation state machine (`rdma_dim()`), with hand-computed windows; the consumer's `schedule_work()` is the returned flag, and `lib/dim/net_dim.c` waits | partial |
-| 111+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 111 | `lib/zstd/common/error_private.c` and the enum in `include/linux/zstd_errors.h`: the error code list, `ZSTD_isError()`, `ZSTD_getErrorCode()` and the one message table, with host tests for each message, the default and the error range; `lib/tests/test_bits.c`: the `BIT_*()` and `GENMASK*()` checks, with the typed and 128-bit cases; the compile-fail cases and `GENMASK_INPUT_CHECK()` are not ported | done |
+| 112+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -779,3 +780,7 @@ or `test` (a C test file ported to Rust tests).
 | `lib/dim/rdma_dim.c` | `lib/src/dim.rs` | done | `Dim::rdma_dim()` and its decision, step and stats-compare helpers, with the same early exits as the C switch |
 | `include/linux/dim.h` (DIM helpers) | `lib/src/dim.rs` | partial | the enums, `struct dim`, the sample helpers and the macros; the net DIM profile API and the irq-moderation calls wait for `net/` |
 | DIM tests | `lib/tests/dim_test.rs` | test | the 10% significance rule, the window arithmetic, the turn and park rules, and the RDMA windows: a climb after a 10%+ gain, the edge turn, the start sample kept before 64 events, and the u16 counter wrap |
+| `lib/zstd/common/error_private.c` | `lib/src/zstd_error.rs` | done | `err_get_error_string()` with the message for every enum value and the unnamed default; the `ZSTD_STRIP_ERROR_STRINGS` build is not ported |
+| `include/linux/zstd_errors.h` | `lib/src/zstd_error.rs` | done | the codes as `u32` constants, `is_error()` and `get_error_code()` on the `size_t` error encoding |
+| zstd error tests | `lib/tests/zstd_error_test.rs` | test | every named message, the default for unnamed codes, distinct messages, and the error range |
+| `lib/tests/test_bits.c` | `lib/tests/test_bits_test.rs` | test | the `BIT_*()` and `GENMASK*()` cases, with the typed 128-bit ones; the `TEST_GENMASK_FAILURES` compile-fail cases and `GENMASK_INPUT_CHECK()` wait |
