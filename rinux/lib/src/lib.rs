@@ -126,6 +126,7 @@ pub mod timerqueue;
 pub mod ts_bm;
 pub mod ts_fsm;
 pub mod ts_kmp;
+pub mod uaccess;
 pub mod ucs2_string;
 pub mod union_find;
 pub mod usercopy;

@@ -12,12 +12,15 @@
 //! stops at the first NUL or the end of the slice. Anything that derefs to
 //! bytes works, so `kstrtoint("42", 10)` is fine.
 //!
-//! The `*_from_user()` variants need `copy_from_user()` and will come with
-//! the uaccess port.
+//! The `*_from_user()` variants copy through [`crate::uaccess::UserMemory`]
+//! and parse the copy, for the widths that are ported (the 64-bit and 32-bit
+//! integers and the boolean); the 16- and 8-bit variants wait for those
+//! widths.
 
 use crate::ctype::{_tolower, isdigit, isxdigit};
 use crate::errno::{EINVAL, ERANGE, Result};
 use crate::math::int_pow;
+use crate::uaccess::{KSTRTO32_BUF, KSTRTO64_BUF, KSTRTOBOOL_BUF, UserMemory, kstrto_copy};
 
 /// Set in the return value of [`parse_integer_limit`] when the value overflowed.
 pub const KSTRTOX_OVERFLOW: u32 = 1 << 31;
@@ -290,4 +293,78 @@ pub fn kstrtodec64(s: impl AsRef<[u8]>, scale: u32) -> Result<i64> {
         }
         Ok(tmp as i64)
     }
+}
+
+/// `kstrtoull_from_user()`: copies at most 66 bytes from user memory and
+/// parses them as [`kstrtoull`] does.
+pub fn kstrtoull_from_user(
+    user: &impl UserMemory,
+    src: usize,
+    count: usize,
+    base: u32,
+) -> Result<u64> {
+    let (buf, len) = kstrto_copy::<KSTRTO64_BUF>(user, src, count)?;
+    kstrtoull(&buf[..len], base)
+}
+
+/// `kstrtoll_from_user()`: as [`kstrtoull_from_user`], signed.
+pub fn kstrtoll_from_user(
+    user: &impl UserMemory,
+    src: usize,
+    count: usize,
+    base: u32,
+) -> Result<i64> {
+    let (buf, len) = kstrto_copy::<KSTRTO64_BUF>(user, src, count)?;
+    kstrtoll(&buf[..len], base)
+}
+
+/// `kstrtoul_from_user()`: the same copy as [`kstrtoull_from_user`].
+pub fn kstrtoul_from_user(
+    user: &impl UserMemory,
+    src: usize,
+    count: usize,
+    base: u32,
+) -> Result<u64> {
+    let (buf, len) = kstrto_copy::<KSTRTO64_BUF>(user, src, count)?;
+    kstrtoul(&buf[..len], base)
+}
+
+/// `kstrtol_from_user()`: the same copy as [`kstrtoll_from_user`].
+pub fn kstrtol_from_user(
+    user: &impl UserMemory,
+    src: usize,
+    count: usize,
+    base: u32,
+) -> Result<i64> {
+    let (buf, len) = kstrto_copy::<KSTRTO64_BUF>(user, src, count)?;
+    kstrtol(&buf[..len], base)
+}
+
+/// `kstrtouint_from_user()`: copies at most 34 bytes, as [`kstrtouint`] takes.
+pub fn kstrtouint_from_user(
+    user: &impl UserMemory,
+    src: usize,
+    count: usize,
+    base: u32,
+) -> Result<u32> {
+    let (buf, len) = kstrto_copy::<KSTRTO32_BUF>(user, src, count)?;
+    kstrtouint(&buf[..len], base)
+}
+
+/// `kstrtoint_from_user()`: the same copy as [`kstrtouint_from_user`].
+pub fn kstrtoint_from_user(
+    user: &impl UserMemory,
+    src: usize,
+    count: usize,
+    base: u32,
+) -> Result<i32> {
+    let (buf, len) = kstrto_copy::<KSTRTO32_BUF>(user, src, count)?;
+    kstrtoint(&buf[..len], base)
+}
+
+/// `kstrtobool_from_user()`: copies at most 3 bytes, enough to tell the
+/// accepted words apart.
+pub fn kstrtobool_from_user(user: &impl UserMemory, src: usize, count: usize) -> Result<bool> {
+    let (buf, len) = kstrto_copy::<KSTRTOBOOL_BUF>(user, src, count)?;
+    kstrtobool(&buf[..len])
 }

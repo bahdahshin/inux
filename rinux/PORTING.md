@@ -151,7 +151,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 114 | `lib/rcuref.c` and `include/linux/rcuref.h`: the RCU-safe reference count with its unsigned zones (ONEREF, SATURATED, RELEASED, DEAD, NOREF), the get and put fast paths and their slow paths, with the zone transitions checked one by one and a threaded balance test; the preemption guard in `rcuref_put()` and the `WARN_ONCE()` calls are not reproduced | done |
 | 115 | the allocating helpers behind an `alloc` cargo feature (`lib/src/alloc_helpers.rs`): `kasprintf()`, `match_strdup()` and `bitmap_alloc()`/`bitmap_zalloc()`, with the lib crate still allocation-free by default; this unblocks the allocator-blocked rows, and `devm_*()` and the user-copy wrappers remain | done |
 | 116 | `lib/src/printk.rs`: the log levels and a `Sink` that lib functions print through, one line at a time, so the lib needs no global state; the kernel passes a sink that calls its `printk()`. `print_hex_dump()` uses it, with the address, offset and none prefixes and the line limit; host tests check the rows, prefixes, levels and truncation | done |
-| 117+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 117 | `lib/src/uaccess.rs`: the `UserMemory` trait (`copy_from_user()` and `copy_to_user()` returning the bytes not copied), `FlatUser` as a flat user address space, and the byte-wise `strncpy_from_user_mem()`, `strnlen_user_mem()` and `check_zeroed_user_mem()`; `kstrto*_from_user()` for the 64- and 32-bit integers and the boolean; the kernel implements `UserMemory` over the task's address space with the fault fixup | done |
+| 118+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -256,9 +257,9 @@ or `test` (a C test file ported to Rust tests).
 | `lib/string_helpers.c` | `lib/src/string.rs` | partial | `memcpy_and_pad()`, `skip_spaces()`, `string_unescape()` and `string_escape_mem()` (space/special/null/octal/hex with the NP/NA/NAP pass-through and `only`/append classes); the unit/size helpers pending |
 | `include/linux/string_helpers.h` | `lib/src/string.rs` | partial | the `UNESCAPE_*` and `ESCAPE_*` flags |
 | string escape/unescape tests | `lib/tests/string_escape_kunit.rs` | test | per-class checks, `only`/append, truncation, and an all-bytes escape/unescape round-trip |
-| `lib/kstrtox.c` | `lib/src/kstrtox.rs` | partial | `*_from_user()` wait for uaccess |
+| `lib/kstrtox.c` | `lib/src/kstrtox.rs` | partial | the `*_from_user()` helpers for the 64- and 32-bit integers and the boolean are over `UserMemory`; the 16- and 8-bit ones wait for those widths |
 | `lib/kstrtox.h` | `lib/src/kstrtox.rs` | done | |
-| `include/linux/kstrtox.h` | `lib/src/kstrtox.rs` | partial | `*_from_user()` wait for uaccess; `simple_strto*()` are in `lib/src/vsprintf.rs` |
+| `include/linux/kstrtox.h` | `lib/src/kstrtox.rs` | partial | the `*_from_user()` helpers as for `lib/kstrtox.c`; `simple_strto*()` are in `lib/src/vsprintf.rs` |
 | `lib/sort.c` | `lib/src/sort.rs` | partial | `*_nonatomic()` wait for `cond_resched()` |
 | `include/linux/sort.h` | `lib/src/sort.rs` | partial | as `lib/sort.c` |
 | `lib/bsearch.c` | `lib/src/bsearch.rs` | done | |
@@ -757,9 +758,9 @@ or `test` (a C test file ported to Rust tests).
 | `lib/bucket_locks.c` | `lib/src/bucket_locks.rs` | done | `bucket_locks_size()` (the sizing rule and mask) and `BucketLocks` over caller-provided spinlock flags, with `lock(hash)`; the kvmalloc and lockdep init stay with the caller |
 | `lib/interval_tree.c` | `lib/src/interval_tree.rs` | partial | insert, remove, subtree search, `iter_first()` and `iter_next()` on the augmented rbtree; the span iterator (`CONFIG_INTERVAL_TREE_SPAN_ITER`) waits; the leftmost node is found by walking rather than cached |
 | `include/linux/interval_tree_generic.h` | `lib/src/interval_tree.rs` | done | the generic algorithms and the `RB_DECLARE_CALLBACKS_MAX` callbacks for the subtree maximum |
-| `lib/strncpy_from_user.c` | `lib/src/strncpy_from_user.rs` | partial | `strncpy_from_user()` over a user-byte reader that returns None for a fault; the word-at-a-time path, the masking after the NUL and the page-table walk wait for the kernel's user-access layer |
-| `lib/strnlen_user.c` | `lib/src/strnlen_user.rs` | partial | `strnlen_user()` with C's convention (length plus NUL, count plus one when too long, 0 on fault); the word search and the user-access layer wait for the kernel |
-| `lib/usercopy.c` | `lib/src/usercopy.rs` | partial | `check_zeroed_user()` as a byte check with C's early exit at the first non-zero byte and its -EFAULT; the `_copy_from_user` and `_copy_to_user` wrappers are the kernel's user-access layer and wait |
+| `lib/strncpy_from_user.c` | `lib/src/strncpy_from_user.rs` | done | `strncpy_from_user()` over `UserMemory` (`strncpy_from_user_mem()`); the word-at-a-time fast path is an optimisation with the same result and is not ported |
+| `lib/strnlen_user.c` | `lib/src/strnlen_user.rs` | done | `strnlen_user()` with C's convention (length plus NUL, count plus one when too long, 0 on fault), over `UserMemory` (`strnlen_user_mem()`); the word search is an optimisation and is not ported |
+| `lib/usercopy.c` | `lib/src/usercopy.rs` | done | `check_zeroed_user()` with C's early exit and its -EFAULT, over `UserMemory` (`check_zeroed_user_mem()`); the `_copy_from_user()` and `_copy_to_user()` wrappers are the `UserMemory` trait in `lib/src/uaccess.rs` |
 | `lib/iomap_copy.c` | `lib/src/iomap_copy.rs` | done | `iowrite32_copy()`, `ioread32_copy()` and `iowrite64_copy()` with the raw register accesses as closures; word-at-a-time, one access per word as C |
 | `lib/iomem_copy.c` | `lib/src/iomem_copy.rs` | done | `memset_io()`, `memcpy_fromio()` and `memcpy_toio()` as byte operations over closures; the word-width bus accesses are left to the kernel's accessors |
 | `lib/decompress.c` | `lib/src/decompress.rs` | partial | `decompress_method()` as the magic table naming the method (gzip, bzip2, lzma, xz, lzo, lz4, zstd); the decompressors themselves are separate files and wait |
