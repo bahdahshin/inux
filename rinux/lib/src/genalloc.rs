@@ -25,6 +25,9 @@ pub enum GenAlgo {
     /// `gen_pool_first_fit_align()`: the first run whose absolute address is a
     /// multiple of the given power-of-two alignment.
     FirstFitAlign(u64),
+    /// `gen_pool_fixed_alloc()`: exactly `offset` bytes into the chunk, if that
+    /// region is free. `offset` must be a whole number of units.
+    Fixed(u64),
 }
 
 /// `gen_pool_best_fit()`: the start of the smallest free run of `nr` units or
@@ -110,6 +113,23 @@ impl<'a> GenPool<'a> {
         let start = match algo {
             GenAlgo::FirstFit => bitmap_find_next_zero_area(self.bits, self.nunits, 0, nbits, 0),
             GenAlgo::BestFit => best_fit(self.bits, self.nunits, nbits),
+            GenAlgo::Fixed(offset) => {
+                // C: an offset that is not a whole number of units is no fit.
+                if offset & (self.unit() as u64 - 1) != 0 {
+                    return None;
+                }
+                let offset_bit = (offset >> self.order) as usize;
+                if offset_bit >= self.nunits {
+                    return None;
+                }
+                let start =
+                    bitmap_find_next_zero_area(self.bits, self.nunits, offset_bit, nbits, 0);
+                if start != offset_bit {
+                    self.nunits
+                } else {
+                    start
+                }
+            }
             GenAlgo::FirstFitAlign(align) => {
                 if !align.is_power_of_two() {
                     return None;
