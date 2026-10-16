@@ -117,7 +117,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 79 | `kernel/sched/fair.c` (EEVDF accounting): `avg_vruntime()`, `vruntime_eligible()` and `update_deadline()` over the weighted accumulators, checked against exact rational arithmetic over random entities; the zero_vruntime update and the runqueue wait for the scheduler | partial |
 | 80 | `kernel/sched/sched.h` (`rt_prio_array`): the real-time priority array, with tests for pick order, FIFO within a priority, middle removal and the bitmap | partial |
 | 81 | `kernel/sched/wait.c`: wait queue placement, removal and the wake walk with exclusive counting, with tests for head and tail order, the count limit, a stop, and removal; the locking and sleep paths wait | partial |
-| 82+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 82 | `kernel/sched/pelt.c` and `kernel/sched/sched-pelt.h`: PELT decay and segment accumulation with the copied table, checked against the real exponential, the half-life per period, and the cutoff; the per-entity averages wait | partial |
+| 83+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -484,6 +485,8 @@ or `test` (a C test file ported to Rust tests).
 | `kernel/sched/core.c` (weight tables) | `lib/src/sched_fair.rs` | done | `sched_prio_to_weight` and `sched_prio_to_wmult`, extracted from the C source |
 | `kernel/sched/core.c` | `kernel/src/kernel/sched/core.rs` | partial | runqueue, __schedule/context_switch/finish_task_switch, schedule(), wake_up_new_task, sched_tick, do_exit, kernel_thread, cpu idle loop, sched_init; round-robin only, one CPU, no CFS/EEVDF, load balancing or mm switch |
 | `kernel/sched/sched.h` (`rt_prio_array`) | `lib/src/sched_rt_prio.rs` | partial | the RT priority array: one FIFO per priority over entity ids, a bitmap with the delimiter bit, enqueue, dequeue and the highest-priority pick; the rt_rq and bandwidth logic wait |
+| `kernel/sched/pelt.c` | `lib/src/sched_pelt.rs` | partial | `decay_load()` and `__accumulate_pelt_segments()` with the copied inverse-decay table; the per-entity update and the runnable and util averages wait for the scheduler |
+| `kernel/sched/sched-pelt.h` | `lib/src/sched_pelt.rs` | done | `LOAD_AVG_PERIOD`, `LOAD_AVG_MAX` and `runnable_avg_yN_inv[]`, the table copied by script |
 | `kernel/sched/wait.c` | `lib/src/wait.rs` | partial | `add_wait_queue()` (head), `add_wait_queue_exclusive()` (tail), `remove_wait_queue()` and `__wake_up_common()` with C's negative, positive and zero wake results and exclusive counting; the spinlock and the sleeping and prepare/finish-wait paths wait for the scheduler |
 | `kernel/sched/rt.c` | `kernel/src/kernel/sched/core.rs` | partial | RR_TIMESLICE round-robin rotation |
 | `kernel/kthread.c` | `kernel/src/kernel/kthread.rs` | partial | kthread_run; kthread_stop, parking and kthreadd pending |
