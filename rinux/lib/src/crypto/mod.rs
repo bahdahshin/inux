@@ -6,6 +6,7 @@
 
 pub mod arc4;
 pub mod chacha;
+pub mod hash_info;
 pub mod mpi;
 pub mod mpi_mul;
 pub mod mpi_obj;
