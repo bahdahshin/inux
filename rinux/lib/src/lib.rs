@@ -16,6 +16,7 @@
 
 pub mod bug;
 
+pub mod argv_split;
 pub mod base64;
 pub mod bcd;
 pub mod bitmap;
