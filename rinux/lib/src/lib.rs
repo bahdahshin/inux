@@ -66,6 +66,7 @@ pub mod kstrtox;
 pub mod libgcc;
 pub mod linear_ranges;
 pub mod list;
+pub mod list_debug;
 pub mod llist;
 pub mod loadavg;
 pub mod lockref;
