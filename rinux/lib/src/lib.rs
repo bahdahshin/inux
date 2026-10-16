@@ -97,5 +97,6 @@ pub mod union_find;
 pub mod usercopy;
 pub mod uuid;
 pub mod vsprintf;
+pub mod wait;
 pub mod win_minmax;
 pub mod xxhash;
