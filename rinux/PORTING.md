@@ -148,7 +148,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 111 | `lib/zstd/common/error_private.c` and the enum in `include/linux/zstd_errors.h`: the error code list, `ZSTD_isError()`, `ZSTD_getErrorCode()` and the one message table, with host tests for each message, the default and the error range; `lib/tests/test_bits.c`: the `BIT_*()` and `GENMASK*()` checks, with the typed and 128-bit cases; the compile-fail cases and `GENMASK_INPUT_CHECK()` are not ported | done |
 | 112 | `lib/raid/raid6/mktables.c`, `lib/raid/raid6/int.uc` and `lib/raid/raid6/recov.c`: the GF(2^8) tables as const items, the P/Q syndrome and its partial update, and the two-disk and one-disk recovery (byte-wise, not word-wise); `lib/raid/xor/xor-8regs.c`: the 2- to 5-source XOR over eight-word groups. The SIMD variants, `algos.c` and `xor-8regs-prefetch.c` are not ported | done |
 | 113 | `lib/fw_table.c` and `include/linux/fw_table.h`: the generic subtable walker over a byte slice (`acpi_parse_entries_array()`) for the common ACPI subtable header and the CDAT layout, and `cdat_table_parse()`, with host tests for the CDAT and ACPI-style walks, the entry, handler and length rules; the HMAT, PRMT and CEDT layouts are not ported and return `EOPNOTSUPP`, and the handler gets the entry bytes rather than the table end | partial |
-| 114+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 114 | `lib/rcuref.c` and `include/linux/rcuref.h`: the RCU-safe reference count with its unsigned zones (ONEREF, SATURATED, RELEASED, DEAD, NOREF), the get and put fast paths and their slow paths, with the zone transitions checked one by one and a threaded balance test; the preemption guard in `rcuref_put()` and the `WARN_ONCE()` calls are not reproduced | done |
+| 115+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -792,4 +793,6 @@ or `test` (a C test file ported to Rust tests).
 | `lib/raid/xor/xor-8regs.c` | `lib/src/raid_xor.rs` | done | `xor_2()` to `xor_5()` over eight-word groups; the `DO_XOR_BLOCKS` template is the four functions |
 | `lib/fw_table.c` | `lib/src/fw_table.rs` | partial | `acpi_parse_entries_array()` and `cdat_table_parse()` over a byte slice, for the common ACPI and CDAT subtable layouts; the HMAT, PRMT and CEDT layouts are not ported (`EOPNOTSUPP`), and the handler gets the entry bytes, not the table end |
 | `include/linux/fw_table.h` | `lib/src/fw_table.rs` | partial | `SubtableProc` in place of `struct acpi_subtable_proc`, with the handler as a closure; the `handler_arg` and `arg` pair folds into the closure |
+| `lib/rcuref.c` | `lib/src/rcuref.rs` | done | `rcuref_get()`, `rcuref_put()`, `rcuref_put_rcusafe()` and both slow paths; the preemption guard and `WARN_ONCE()` are not reproduced |
+| `include/linux/rcuref.h` | `lib/src/rcuref.rs` | done | the `RCUREF_*` constants, `RcuRef` in place of `rcuref_t`, with `new`, `read` and `is_dead` |
 | RAID tests | `lib/tests/raid6_test.rs`, `lib/tests/raid_xor_test.rs` | test | table axioms, syndromes against a direct sum, partial updates, every two-disk and one-disk failure, and the XOR counts |

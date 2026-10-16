@@ -96,6 +96,7 @@ pub mod plist;
 pub mod random32;
 pub mod ratelimit;
 pub mod rbtree;
+pub mod rcuref;
 pub mod refcount;
 pub mod sched_dl_cbs;
 pub mod sched_eevdf;
