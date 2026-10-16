@@ -98,7 +98,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 60 | `lib/crypto/poly1305.c` and `poly1305-donna64.c`: the Poly1305 authenticator with its 44-bit limb core, checked against the RFC 8439 vector and the empty message | done |
 | 61 | `lib/crypto/nh.c` and `include/crypto/nh.h`: the NH almost-universal hash over 16-byte units, checked against hand-computed single-unit and second-unit cases, plus length rules | done |
 | 62 | `lib/crypto/sm3.c`: the SM3 hash, checked against the two GB/T 32905 examples and split updates | done |
-| 63+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 63 | `crypto/sm4.c` (core) and `include/crypto/sm4.h`: the SM4 block cipher with its key schedule, checked against the GB/T 32907 example and a decryption round trip | partial |
+| 64+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -662,6 +663,8 @@ or `test` (a C test file ported to Rust tests).
 | `include/crypto/nh.h` | `lib/src/crypto/nh.rs` | done | the unit and pass constants |
 | `lib/crypto/sm3.c` | `lib/src/crypto/sm3.rs` | done | `Sm3Ctx` init, update and finalize, and `sm3()`; the 64 rounds are a loop with the constant rotated by the index, not the unrolled macros |
 | `crypto/sm3.c` | — | not ported | the Crypto API shash wrapper (registration and export/import) waits for the crypto API |
+| `crypto/sm4.c` | `lib/src/crypto/sm4.rs` | partial | `sm4_expandkey()` and `sm4_crypt_block()` with the S-box copied from the C table; the Crypto API `sm4_alg` registration waits |
+| `include/crypto/sm4.h` | `lib/src/crypto/sm4.rs` | partial | the block and key sizes, and the round-key context |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
