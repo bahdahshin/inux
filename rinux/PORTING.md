@@ -168,7 +168,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 131 | `lib/genalloc.c`: `gen_pool_first_fit_order_align()` as `GenAlgo::OrderAlign`, which aligns the unit index to the request rounded up to a power of two; host tests cover the three-unit case, a one-unit request and an aligned run that does not fit | done |
 | 132 | `lib/genalloc.c`: the growable pool, `GenPoolVec` behind `alloc`, where `gen_pool_add()` never runs out of chunks and allocation, free, `avail`, `size`, `has_addr` and `virt_to_phys` work across them newest first; host tests add more chunks than the fixed pool holds, and check allocation order, free and the policies across chunks | done |
 | 133 | kernel wiring of the lib hooks: `PoolRandom` in `drivers/char/random.rs` implements `RandomSource` over the locked pool, and `lib_line()` in `kernel/printk.rs` is the line sink for the lib's printing functions, emitting through `vprintk_emit()` with the newline added; the kernel crate builds for `x86_64-unknown-none`. Nothing in the kernel calls these yet, and the kernel's test harness is off, so this is verified by the build only | done |
-| 134+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 134 | kernel wiring of `UserMemory`: `UserSpace` in `arch/x86/mm/user.rs` copies to and from a task's user pages by walking its page tables one page at a time. Each page is checked for present, user and, for writes, writable bits before the frame is touched, so a bad user pointer gives a short copy and never a kernel page fault; the lower-half limit is enforced. Nothing calls it yet, and the kernel's test harness is off, so this is verified by the build only | done |
+| 135+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 

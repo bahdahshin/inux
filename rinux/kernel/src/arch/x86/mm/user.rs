@@ -203,3 +203,80 @@ pub unsafe fn load_cr3(pgd: u64) {
         core::arch::asm!("mov {}, %cr3", in(reg) pgd, options(att_syntax, nostack, preserves_flags))
     }
 }
+
+/// Highest canonical user address, exclusive: the lower half of the 48-bit
+/// space.
+const USER_VA_END: u64 = 0x0000_8000_0000_0000;
+
+/// The physical address behind user address `va` in `pgd`, if the page is
+/// present and accessible from user mode (and writable when `write` is set).
+fn user_phys(pgd: u64, va: u64, write: bool) -> Option<u64> {
+    if va >= USER_VA_END {
+        return None;
+    }
+    let e = user_pte(pgd, va)?;
+    // SAFETY: e points at a PTE in an identity-mapped table we own.
+    let v = unsafe { *e };
+    let ok = v & _PAGE_PRESENT != 0 && v & _PAGE_USER != 0 && (!write || v & _PAGE_RW != 0);
+    if !ok {
+        return None;
+    }
+    Some((v & PTE_PFN_MASK) | (va & (PAGE_SIZE - 1)))
+}
+
+/// A task's user address space, as the lib's copy primitives see it.
+///
+/// Each copy walks the page tables one page at a time and checks the PTE
+/// before touching the frame, so a bad user pointer makes the copy stop
+/// short (the count of bytes not copied) and never page-faults the kernel.
+#[derive(Clone, Copy, Debug)]
+pub struct UserSpace {
+    pgd: u64,
+}
+
+impl UserSpace {
+    /// The address space rooted at `pgd`.
+    pub const fn new(pgd: u64) -> Self {
+        Self { pgd }
+    }
+}
+
+impl rinux_lib::uaccess::UserMemory for UserSpace {
+    fn copy_from_user(&self, dst: &mut [u8], src: usize) -> usize {
+        let mut done = 0;
+        while done < dst.len() {
+            let va = src as u64 + done as u64;
+            let Some(phys) = user_phys(self.pgd, va, false) else {
+                break;
+            };
+            let room = (PAGE_SIZE - (va & (PAGE_SIZE - 1))) as usize;
+            let n = room.min(dst.len() - done);
+            // SAFETY: phys is a present user page, and the identity map covers
+            // it; dst[done..done + n] is in bounds.
+            unsafe {
+                core::ptr::copy_nonoverlapping(phys as *const u8, dst[done..].as_mut_ptr(), n);
+            }
+            done += n;
+        }
+        dst.len() - done
+    }
+
+    fn copy_to_user(&mut self, dst: usize, src: &[u8]) -> usize {
+        let mut done = 0;
+        while done < src.len() {
+            let va = dst as u64 + done as u64;
+            let Some(phys) = user_phys(self.pgd, va, true) else {
+                break;
+            };
+            let room = (PAGE_SIZE - (va & (PAGE_SIZE - 1))) as usize;
+            let n = room.min(src.len() - done);
+            // SAFETY: phys is a present, writable user page, and the identity
+            // map covers it; src[done..done + n] is in bounds.
+            unsafe {
+                core::ptr::copy_nonoverlapping(src[done..].as_ptr(), phys as *mut u8, n);
+            }
+            done += n;
+        }
+        src.len() - done
+    }
+}
