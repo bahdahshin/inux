@@ -310,3 +310,84 @@ impl<'a, const N: usize> GenPoolList<'a, N> {
         self.iter().find_map(|c| c.virt_to_phys(addr))
     }
 }
+
+/// A pool of any number of chunks, as `gen_pool_add()` builds with its list.
+///
+/// The growable form of [`GenPoolList`]: chunks are kept in add order and
+/// searched newest first, and `add` does not run out of room. Behind the
+/// `alloc` feature, since the chunk list is a `Vec`.
+#[cfg(feature = "alloc")]
+pub struct GenPoolVec<'a> {
+    chunks: alloc::vec::Vec<GenPool<'a>>,
+    order: u32,
+}
+
+#[cfg(feature = "alloc")]
+impl<'a> GenPoolVec<'a> {
+    /// `gen_pool_create()`: an empty pool whose allocations are in units of
+    /// `1 << order` bytes.
+    pub fn new(order: u32) -> Self {
+        Self {
+            chunks: alloc::vec::Vec::new(),
+            order,
+        }
+    }
+
+    /// `gen_pool_add()`: adds a chunk of `size` bytes at `start_addr`, backed
+    /// by physical `phys_addr`, tracked by `bits`.
+    pub fn add(&mut self, bits: &'a mut [u64], start_addr: u64, size: usize, phys_addr: u64) {
+        self.chunks
+            .push(GenPool::new(bits, start_addr, size, self.order).with_phys_addr(phys_addr));
+    }
+
+    /// The chunks, newest first.
+    fn iter(&self) -> impl Iterator<Item = &GenPool<'a>> {
+        self.chunks.iter().rev()
+    }
+
+    /// The chunks, newest first, mutable.
+    fn iter_mut(&mut self) -> impl Iterator<Item = &mut GenPool<'a>> {
+        self.chunks.iter_mut().rev()
+    }
+
+    /// `gen_pool_alloc()`: the first chunk, newest first, that can give `size`
+    /// bytes.
+    pub fn alloc(&mut self, size: usize) -> Option<u64> {
+        self.iter_mut().find_map(|c| c.alloc(size))
+    }
+
+    /// `gen_pool_alloc_algo()` across the chunks, newest first.
+    pub fn alloc_with(&mut self, size: usize, algo: GenAlgo) -> Option<u64> {
+        self.iter_mut().find_map(|c| c.alloc_with(size, algo))
+    }
+
+    /// `gen_pool_free()`: returns `size` bytes at `addr` to the chunk that
+    /// contains them. An address in no chunk is ignored.
+    pub fn free(&mut self, addr: u64, size: usize) {
+        if let Some(chunk) = self.iter_mut().find(|c| c.has_addr(addr, size)) {
+            chunk.free(addr, size);
+        }
+    }
+
+    /// `gen_pool_avail()`: free bytes across all chunks.
+    pub fn avail(&self) -> usize {
+        self.iter().map(GenPool::avail).sum()
+    }
+
+    /// `gen_pool_size()`: bytes managed across all chunks.
+    pub fn size(&self) -> usize {
+        self.iter().map(GenPool::size).sum()
+    }
+
+    /// `gen_pool_has_addr()`: whether `[start, start + size)` lies inside one
+    /// chunk.
+    pub fn has_addr(&self, start: u64, size: usize) -> bool {
+        self.iter().any(|c| c.has_addr(start, size))
+    }
+
+    /// `gen_pool_virt_to_phys()`: the physical address of `addr` in whichever
+    /// chunk holds it.
+    pub fn virt_to_phys(&self, addr: u64) -> Option<u64> {
+        self.iter().find_map(|c| c.virt_to_phys(addr))
+    }
+}
