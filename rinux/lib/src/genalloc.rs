@@ -10,7 +10,9 @@
 //! `gen_pool_add`), a caller-supplied bitmap, first-fit only, and no locking,
 //! NMI-safe `cmpxchg`, NUMA ownership or `gen_pool_dma_*` helpers.
 
-use crate::bitmap::{bitmap_clear, bitmap_find_next_zero_area, bitmap_set};
+use crate::bitmap::{
+    bitmap_clear, bitmap_find_next_zero_area, bitmap_find_next_zero_area_off, bitmap_set,
+};
 use crate::find_bit::find_next_bit;
 
 /// The region policy for an allocation, as `genpool_algo_t` picks it.
@@ -20,6 +22,9 @@ pub enum GenAlgo {
     FirstFit,
     /// `gen_pool_best_fit()`: the smallest run of free units that is big enough.
     BestFit,
+    /// `gen_pool_first_fit_align()`: the first run whose absolute address is a
+    /// multiple of the given power-of-two alignment.
+    FirstFitAlign(u64),
 }
 
 /// `gen_pool_best_fit()`: the start of the smallest free run of `nr` units or
@@ -105,6 +110,23 @@ impl<'a> GenPool<'a> {
         let start = match algo {
             GenAlgo::FirstFit => bitmap_find_next_zero_area(self.bits, self.nunits, 0, nbits, 0),
             GenAlgo::BestFit => best_fit(self.bits, self.nunits, nbits),
+            GenAlgo::FirstFitAlign(align) => {
+                if !align.is_power_of_two() {
+                    return None;
+                }
+                // C: the mask in units, and the chunk start's misalignment
+                // in units, so the absolute address is what gets aligned.
+                let align_mask = ((align + self.unit() as u64 - 1) >> self.order) as usize - 1;
+                let align_off = ((self.start_addr & (align - 1)) >> self.order) as usize;
+                bitmap_find_next_zero_area_off(
+                    self.bits,
+                    self.nunits,
+                    0,
+                    nbits,
+                    align_mask,
+                    align_off,
+                )
+            }
         };
         if start >= self.nunits {
             return None;

@@ -163,7 +163,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 126 | `lib/genalloc.c`: `gen_pool_virt_to_phys()` on the single-chunk pool, with the physical base set by `with_phys_addr()`; `None` where C returns `-1`; host tests cover the offset, addresses outside the chunk and the zero default | done |
 | 127 | `lib/genalloc.c`: `GenPoolList`, the multi-chunk pool with `gen_pool_add()`, newest chunk first for alloc, free to the chunk that holds the range, and `avail`, `size`, `has_addr` and `virt_to_phys` across chunks; chunk slots are fixed at compile time so `add` past N is `ENOSPC`; host tests cover the search order, the free target, per-chunk physical addresses and the slot limit | done |
 | 128 | `lib/genalloc.c`: `gen_pool_best_fit()` as `GenAlgo::BestFit` with `alloc_with()`, which takes the smallest free run that fits and gives `None` when none does; first-fit stays the plain `alloc()`; host tests build a fragmented pool where the two policies pick different regions | done |
-| 129+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 129 | `lib/genalloc.c`: `gen_pool_first_fit_align()` as `GenAlgo::FirstFitAlign`, aligning the absolute address through the chunk's start, with a non-power-of-two alignment refused; host tests cover an aligned start after a used byte and an unaligned pool start | done |
+| 130+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -379,7 +380,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/bitmap-str.h` | `lib/src/bitmap.rs` | partial | as `lib/bitmap-str.c` |
 | `lib/find_bit.c` | `lib/src/find_bit.rs` | done | `find_random_bit()` over a `RandomSource`; the rest of the file is ported above |
 | `include/linux/find.h` | `lib/src/find_bit.rs` | done | `for_each_*` loops are iterators |
-| `lib/genalloc.c` | `lib/src/genalloc.rs` | partial | `gen_pool_alloc`/`free`/`avail`/`size`/`has_addr`/`virt_to_phys` on a single chunk (`GenPool`) and across up to N chunks in add order, newest first (`GenPoolList`); first-fit and best-fit (`GenAlgo`); no growable chunk list, the fixed and aligned policies, locking or NUMA ownership |
+| `lib/genalloc.c` | `lib/src/genalloc.rs` | partial | `gen_pool_alloc`/`free`/`avail`/`size`/`has_addr`/`virt_to_phys` on a single chunk (`GenPool`) and across up to N chunks in add order, newest first (`GenPoolList`); first-fit, best-fit and first-fit-with-alignment (`GenAlgo`); no growable chunk list, the fixed-offset policy, locking or NUMA ownership |
 | `include/linux/genalloc.h` | `lib/src/genalloc.rs` | partial | the pool's unit order and bitmap |
 | genalloc tests | `lib/tests/genalloc_kunit.rs` | test | alloc/free/reuse, exhaustion, and a no-overlap check |
 | `include/linux/bitops.h` | `lib/src/bitops.rs` | partial | atomic bitops, `set_mask_bits()` and `bit_clear_unless()` wait for SMP; `__ptr_*_bit()` not needed |
