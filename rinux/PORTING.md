@@ -63,7 +63,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 24 | `lib/oid_registry.c`: `look_up_OID()`, `parse_OID()` and `sprint_oid()`, with the 106-entry table generated from `oid_registry.h` by `scripts/gen_oid_registry.py` (Linux generates it at build time) | done |
 | 25 | `lib/errseq.c`: error sequence numbers (`errseq_set()`, `errseq_sample()`, `errseq_check()`, `errseq_check_and_advance()`) over an `AtomicU32`, with host tests for the sample/set/check protocol; Linux has no KUnit file for it | done |
 | 26 | `lib/argv_split.c`: whitespace word splitting as an allocation-free iterator of index ranges over the caller's bytes (`argv_split()`, `count_argc()`), with host tests; `argv_free()` and the `kmalloc`ed array are left to the caller | done |
-| 27+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 27 | `lib/errname.c`: `errname()` (the symbolic name of an errno, with the sign kept), built on the crate's errno table instead of a second name table; host tests walk every entry | done |
+| 28+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -562,6 +563,7 @@ or `test` (a C test file ported to Rust tests).
 | `lib/linear_ranges.c` | `lib/src/linear_ranges.rs` | done | the selector/value lookups; the `*found` and `*selector` outputs are `&mut` parameters |
 | `include/linux/linear_range.h` | `lib/src/linear_ranges.rs` | done | `LinearRange` and `LINEAR_RANGE()` as `LinearRange::new` |
 | `lib/tests/test_linear_ranges.c` | `lib/tests/linear_ranges_kunit.rs` | test | the two-range fixture and the four KUnit cases, values and selectors as in the C |
+| `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
 | `include/linux/errseq.h` | `lib/src/errseq.rs` | done | `Errseq` as `u32`; the shift, `SEEN` and counter macros as constants |

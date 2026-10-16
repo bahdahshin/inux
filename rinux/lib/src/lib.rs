@@ -26,6 +26,7 @@ pub mod bsearch;
 pub mod cmdline;
 pub mod crc;
 pub mod ctype;
+pub mod errname;
 pub mod errno;
 pub mod errseq;
 pub mod find_bit;
