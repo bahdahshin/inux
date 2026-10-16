@@ -17,6 +17,7 @@
 pub mod bug;
 pub mod check_signature;
 pub mod clz_ctz;
+pub mod clz_tab;
 
 pub mod argv_split;
 pub mod base64;
@@ -48,6 +49,7 @@ pub mod math;
 pub mod md5;
 pub mod memweight;
 pub mod mktime;
+pub mod net_utils;
 pub mod oid_registry;
 pub mod oid_registry_data;
 pub mod packing;
