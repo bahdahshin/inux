@@ -155,7 +155,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 118 | `lib/kstrtox.c`: the 16- and 8-bit `kstrtou16_from_user()`, `kstrtos16_from_user()`, `kstrtou8_from_user()` and `kstrtos8_from_user()`, with the copy sized as in C and tests for the range and fault rules | done |
 | 119 | `lib/bitmap-str.c`: `bitmap_parse_user()` and `bitmap_parselist_user()` over `UserMemory`, with the `memdup_user_nul()` copy in `alloc_helpers` behind the `alloc` feature; host tests cover the hex and list formats, the copy and fault rules, and a bad string | done |
 | 120 | `lib/src/random.rs`: the `RandomSource` trait with `get_random_u32()`, `get_random_bytes()` and `get_random_u32_below()` as in C (the multiply, the high word, and the rejection threshold), implemented for the seeded `RndState`; `find_random_bit()` and the random UUID and GUID generators draw from it | done |
-| 121+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 121 | `lib/src/task_block.rs`: the `TaskBlocker` trait (`block()` and `wake()` on task ids, as `schedule()` and `try_to_wake_up()`), with the sleep and wake paths of `wait.c` (`wait_event()`, `wake_up()`) and of `completion.c` (`wait_for_completion()`, `complete_wake()`) over it; host tests use a double that completes while the task sleeps | done |
+| 122+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -542,7 +543,7 @@ or `test` (a C test file ported to Rust tests).
 | `kernel/sched/sched.h` (`DL_SCALE`) | `lib/src/sched_dl_cbs.rs` | done | the overflow scale |
 | `kernel/sched/cpupri.c` | `lib/src/cpupri.rs` | partial | `convert_prio()`, `cpupri_set()` and `cpupri_find()` without a fitness function, over per-level membership; the cpumask-based fitness search and the atomics wait |
 | `kernel/sched/cpupri.h` | `lib/src/cpupri.rs` | done | the level constants |
-| `kernel/sched/completion.c` | `lib/src/completion.rs` | partial | `complete()`, `complete_all()`, `try_wait_for_completion()` and `completion_done()` over an atomic count with C's UINT_MAX meaning; the blocking waits wait for the scheduler |
+| `kernel/sched/completion.c` | `lib/src/completion.rs` | done | `complete()`, `complete_all()`, `try_wait_for_completion()`, `completion_done()` over an atomic count with C's UINT_MAX meaning, and the blocking wait and wake over a `TaskBlocker` (`wait_for_completion()`, `complete_wake()`); the spinlock is the caller's, as C's lock is released inside `schedule()` |
 | `include/linux/completion.h` | `lib/src/completion.rs` | partial | the count and its states; the wait queue member waits |
 | `include/linux/sched/prio.h` | `lib/src/sched_prio.rs` | done | the nice and priority constants, the conversions, and the policy numbers used by `normal_prio()` |
 | `kernel/sched/syscalls.c` (`__normal_prio`) | `lib/src/sched_prio.rs` | done | `normal_prio()`: deadline, then real-time by rt priority, then nice |
@@ -552,7 +553,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/sched/loadavg.h` | `lib/src/loadavg.rs` | done | `FSHIFT`, `FIXED_1`, `EXP_1`, `EXP_5`, `EXP_15` and the load macros |
 | `kernel/sched/pelt.c` | `lib/src/sched_pelt.rs` | partial | `decay_load()` and `__accumulate_pelt_segments()` with the copied inverse-decay table; the per-entity update and the runnable and util averages wait for the scheduler |
 | `kernel/sched/sched-pelt.h` | `lib/src/sched_pelt.rs` | done | `LOAD_AVG_PERIOD`, `LOAD_AVG_MAX` and `runnable_avg_yN_inv[]`, the table copied by script |
-| `kernel/sched/wait.c` | `lib/src/wait.rs` | partial | `add_wait_queue()` (head), `add_wait_queue_exclusive()` (tail), `remove_wait_queue()` and `__wake_up_common()` with C's negative, positive and zero wake results and exclusive counting; the spinlock and the sleeping and prepare/finish-wait paths wait for the scheduler |
+| `kernel/sched/wait.c` | `lib/src/wait.rs` | done | `add_wait_queue()`, `add_wait_queue_exclusive()`, `remove_wait_queue()`, `__wake_up_common()`, and the sleep and wake paths over a `TaskBlocker` (`wait_event()`, `wake_up()`); the spinlock is the caller's, as in C |
 | `kernel/sched/rt.c` | `kernel/src/kernel/sched/core.rs` | partial | RR_TIMESLICE round-robin rotation |
 | `kernel/kthread.c` | `kernel/src/kernel/kthread.rs` | partial | kthread_run; kthread_stop, parking and kthreadd pending |
 | `include/linux/preempt.h` | `kernel/src/kernel/softirq.rs` | partial | preempt_count, preempt_disable/enable (spinlocks disable preemption) |

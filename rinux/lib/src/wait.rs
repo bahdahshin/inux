@@ -8,6 +8,11 @@
 //! has C's meaning: negative stops the walk, positive means the waiter was woken,
 //! zero means it was skipped. The spinlock that serialises the list in C is the
 //! caller's, as the kernel's lock belongs to the kernel.
+//!
+//! [`wait_event`] and [`wake_up`] are the sleeping paths; they take a
+//! [`crate::task_block::TaskBlocker`] for the scheduler's sleep and wake.
+
+use crate::task_block::TaskBlocker;
 
 /// `WQ_FLAG_EXCLUSIVE`: at most `nr_exclusive` of these are woken.
 pub const WQ_FLAG_EXCLUSIVE: u32 = 0x01;
@@ -51,6 +56,11 @@ impl<const N: usize> WaitQueue<N> {
     }
 
     /// `add_wait_queue()`: a non-exclusive waiter goes at the head.
+    /// `list_empty()` on the queue head: no waiters are queued.
+    pub fn is_empty(&self) -> bool {
+        self.head.is_none()
+    }
+
     pub fn add(&mut self, id: usize) {
         self.entries[id].flags &= !WQ_FLAG_EXCLUSIVE;
         self.link_head(id);
@@ -136,4 +146,43 @@ impl<const N: usize> WaitQueue<N> {
         }
         nr_exclusive
     }
+}
+
+/// `wait_event()`: sleep task `id` until `cond` holds.
+///
+/// Follows the C order: check the condition, join the queue, check again
+/// (so a wake between the two is not lost), block, then leave the queue.
+/// `cond` is called with the waiter already queued, as in `prepare_to_wait()`.
+pub fn wait_event<const N: usize>(
+    q: &mut WaitQueue<N>,
+    blocker: &mut impl TaskBlocker,
+    id: usize,
+    mut cond: impl FnMut() -> bool,
+) {
+    loop {
+        if cond() {
+            return;
+        }
+        q.add(id);
+        if cond() {
+            q.remove(id);
+            return;
+        }
+        blocker.block(id);
+        q.remove(id);
+    }
+}
+
+/// `__wake_up()`: wake up to `nr_exclusive` exclusive waiters, and every
+/// non-exclusive one before them in the walk. Returns what is left of
+/// `nr_exclusive`, as [`WaitQueue::wake_up_common`] does.
+pub fn wake_up<const N: usize>(
+    q: &mut WaitQueue<N>,
+    blocker: &mut impl TaskBlocker,
+    nr_exclusive: i32,
+) -> i32 {
+    q.wake_up_common(nr_exclusive, |id| {
+        blocker.wake(id);
+        1
+    })
 }

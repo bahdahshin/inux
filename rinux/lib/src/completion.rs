@@ -76,3 +76,25 @@ impl Completion {
         self.done.load(Ordering::Acquire) != 0
     }
 }
+
+/// `wait_for_completion()`: sleep task `id` on `q` until one completion is
+/// taken. Uses the wait-queue order of [`crate::wait::wait_event`].
+pub fn wait_for_completion<const N: usize>(
+    c: &Completion,
+    q: &mut crate::wait::WaitQueue<N>,
+    blocker: &mut impl crate::task_block::TaskBlocker,
+    id: usize,
+) {
+    crate::wait::wait_event(q, blocker, id, || c.try_wait());
+}
+
+/// `complete()` and the wake-up of one waiter: the usual pairing that
+/// `swake_up_locked()` does in C.
+pub fn complete_wake<const N: usize>(
+    c: &Completion,
+    q: &mut crate::wait::WaitQueue<N>,
+    blocker: &mut impl crate::task_block::TaskBlocker,
+) {
+    c.complete();
+    crate::wait::wake_up(q, blocker, 1);
+}
