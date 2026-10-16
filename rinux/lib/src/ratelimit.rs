@@ -48,6 +48,39 @@ impl RatelimitState {
         self.missed
     }
 
+    /// `___ratelimit()` with the `printk_deferred()` report: as [`ratelimit`],
+    /// but when a window that suppressed events ends, the
+    /// `"<func>: <n> callbacks suppressed"` line is passed to `sink` at
+    /// `LOGLEVEL_WARNING` first, as C prints it. `func` is cut to fit the
+    /// message buffer.
+    pub fn ratelimit_report(
+        &mut self,
+        now: u64,
+        func: &[u8],
+        sink: &mut crate::printk::Sink<'_>,
+    ) -> bool {
+        let window_ends = self.initialized
+            && self.interval > 0
+            && self.burst > 0
+            && now > self.begin.wrapping_add(self.interval as u64);
+        let missed_before = self.missed;
+        let ret = self.ratelimit(now);
+        if window_ends && missed_before != 0 {
+            let mut buf = [0u8; 128];
+            let len = crate::vsprintf::vsnprintf(
+                &mut buf,
+                "%s: %d callbacks suppressed",
+                &[
+                    crate::vsprintf::Arg::Str(func),
+                    crate::vsprintf::Arg::Num(missed_before as u64),
+                ],
+            )
+            .min(buf.len() - 1);
+            sink(crate::printk::LOGLEVEL_WARNING, &buf[..len]);
+        }
+        ret
+    }
+
     /// `___ratelimit()`: record an event at time `now`, returning `true` if it
     /// is allowed and `false` if it is suppressed.
     pub fn ratelimit(&mut self, now: u64) -> bool {
@@ -75,7 +108,7 @@ impl RatelimitState {
         if now > self.begin.wrapping_add(interval as u64) {
             self.n_left = burst;
             self.begin = now;
-            // The suppressed count is "reported" and cleared each window.
+            // The suppressed count is reported and cleared each window.
             self.missed = 0;
         }
 

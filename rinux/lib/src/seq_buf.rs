@@ -240,3 +240,19 @@ impl Write for Limited<'_> {
         Ok(())
     }
 }
+
+impl SeqBuf<'_> {
+    /// `seq_buf_do_printk()`: passes the text to `sink` one line at a time, at
+    /// `level`, without the newlines. Text after the last newline is a line
+    /// too, as C prints it with a newline added.
+    pub fn do_printk(&self, level: i32, sink: &mut crate::printk::Sink<'_>) {
+        let mut rest = self.as_bytes();
+        while let Some(lf) = rest.iter().position(|&b| b == b'\n') {
+            sink(level, &rest[..lf]);
+            rest = &rest[lf + 1..];
+        }
+        if !rest.is_empty() {
+            sink(level, rest);
+        }
+    }
+}

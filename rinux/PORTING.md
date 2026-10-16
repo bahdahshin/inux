@@ -156,7 +156,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 119 | `lib/bitmap-str.c`: `bitmap_parse_user()` and `bitmap_parselist_user()` over `UserMemory`, with the `memdup_user_nul()` copy in `alloc_helpers` behind the `alloc` feature; host tests cover the hex and list formats, the copy and fault rules, and a bad string | done |
 | 120 | `lib/src/random.rs`: the `RandomSource` trait with `get_random_u32()`, `get_random_bytes()` and `get_random_u32_below()` as in C (the multiply, the high word, and the rejection threshold), implemented for the seeded `RndState`; `find_random_bit()` and the random UUID and GUID generators draw from it | done |
 | 121 | `lib/src/task_block.rs`: the `TaskBlocker` trait (`block()` and `wake()` on task ids, as `schedule()` and `try_to_wake_up()`), with the sleep and wake paths of `wait.c` (`wait_event()`, `wake_up()`) and of `completion.c` (`wait_for_completion()`, `complete_wake()`) over it; host tests use a double that completes while the task sleeps | done |
-| 122+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 122 | `lib/src/printk.rs` and `lib/src/ratelimit.rs`: the ratelimit "N callbacks suppressed" line through the sink, at `LOGLEVEL_WARNING` when a window that suppressed events ends, and `seq_buf_do_printk()` as a sink call per line; host tests cover the report timing, the empty case and the line split | done |
+| 123+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -284,7 +285,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/glob.h` | `lib/src/glob.rs` | done | |
 | `lib/random32.c` | `lib/src/random32.rs` | partial | `prandom_seed_full_state()` waits for per-CPU data and the entropy pool |
 | `include/linux/prandom.h` | `lib/src/random32.rs` | partial | as `lib/random32.c` |
-| `lib/ratelimit.c` | `lib/src/ratelimit.rs` | partial | `___ratelimit()` with the time passed in; no SMP lock/atomics or suppressed-count printk |
+| `lib/ratelimit.c` | `lib/src/ratelimit.rs` | done | `___ratelimit()` with the time passed in, and the "callbacks suppressed" report through a sink (`ratelimit_report()`); the SMP lock and atomics are the caller's, since the state is `&mut` |
 | `include/linux/ratelimit_types.h` | `lib/src/ratelimit.rs` | partial | the `ratelimit_state` fields |
 | ratelimit tests | `lib/tests/ratelimit_kunit.rs` | test | burst/suppress/reset, never-limit, always-limit and one-per-interval |
 | `lib/refcount.c` | `lib/src/refcount.rs` | partial | `refcount_t` add/inc/sub_and_test/dec with saturation at `REFCOUNT_SATURATED`; the `WARN` splats become a silent clamp |
@@ -693,7 +694,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/linear_range.h` | `lib/src/linear_ranges.rs` | done | `LinearRange` and `LINEAR_RANGE()` as `LinearRange::new` |
 | `lib/tests/test_linear_ranges.c` | `lib/tests/linear_ranges_kunit.rs` | test | the two-range fixture and the four KUnit cases, values and selectors as in the C |
 | `lib/clz_ctz.c` | `lib/src/clz_ctz.rs` | done | the four GCC builtins; not called by kernel C, since Rust's bit intrinsics compile to the instruction |
-| `lib/seq_buf.c` | `lib/src/seq_buf.rs` | partial | `SeqBuf`: puts, putc, putmem, putmem_hex, printf and hex_dump with the overflow marker; seq_file, printk, binary printf, paths and user copies wait for those subsystems |
+| `lib/seq_buf.c` | `lib/src/seq_buf.rs` | partial | `SeqBuf`: puts, putc, putmem, putmem_hex, printf, hex_dump and `do_printk()` through a sink, with the overflow marker; seq_file, binary printf, paths and user copies wait for those subsystems |
 | `include/linux/seq_buf.h` | `lib/src/seq_buf.rs` | partial | the buffer, used/left and overflow helpers; the `DECLARE_SEQ_BUF` macro is a constructor |
 | `lib/iommu-helper.c` | `lib/src/iommu_helper.rs` | done | `iommu_area_alloc()` returns `Option<usize>` for the C `-1`; `iommu_is_span_boundary()` and `iommu_device_max_index()` from the header |
 | `lib/check_signature.c` | `lib/src/check_signature.rs` | done | the byte comparison over a caller-supplied `read(offset)`; the `ioremap` and `readb()` access stays with the caller |
