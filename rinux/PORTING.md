@@ -96,7 +96,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 57 | `lib/crypto/blake2s.c` and `include/crypto/blake2s.h`: unkeyed BLAKE2s, with the RFC 7693 empty and abc vectors and block-edge split updates | partial |
 | 58 | `lib/crypto/blake2b.c` and `include/crypto/blake2b.h`: unkeyed BLAKE2b-512, with the RFC 7693 vectors and block-edge split updates | partial |
 | 60 | `lib/crypto/poly1305.c` and `poly1305-donna64.c`: the Poly1305 authenticator with its 44-bit limb core, checked against the RFC 8439 vector and the empty message | done |
-| 61+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 61 | `lib/crypto/nh.c` and `include/crypto/nh.h`: the NH almost-universal hash over 16-byte units, checked against hand-computed single-unit and second-unit cases, plus length rules | done |
+| 62+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -656,6 +657,8 @@ or `test` (a C test file ported to Rust tests).
 | `include/crypto/blake2b.h` | `lib/src/crypto/blake2b.rs` | partial | `Blake2bCtx::new()` (unkeyed); the keyed init waits |
 | `lib/crypto/poly1305-donna64.c` | `lib/src/crypto/poly1305.rs` | done | the 44-bit limb core: `poly1305_core_setkey()`, `blocks()`, `emit()`, with u128 products as in donna |
 | `lib/crypto/poly1305.c` | `lib/src/crypto/poly1305.rs` | done | `poly1305()` one-shot, with the final partial block padded by a 1 bit and no 2^128 bit, as C does |
+| `lib/crypto/nh.c` | `lib/src/crypto/nh.rs` | done | `nh()`, the generic loop (the arch hook returns false); output bytes via `nh_bytes()` |
+| `include/crypto/nh.h` | `lib/src/crypto/nh.rs` | done | the unit and pass constants |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
