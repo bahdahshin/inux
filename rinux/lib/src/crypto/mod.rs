@@ -6,3 +6,4 @@
 
 pub mod arc4;
 pub mod chacha;
+pub mod mpi;
