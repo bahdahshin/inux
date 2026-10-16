@@ -79,7 +79,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 40 | `lib/crypto/arc4.c` (core) and `include/crypto/arc4.h`: the ARC4 stream cipher, with published vectors and split-call tests | partial |
 | 41 | `lib/crypto/chacha*` and `include/crypto/chacha.h`: the RFC 7539 ChaCha block, stream and HChaCha functions, checked against the RFC vectors and split calls | done |
 | 42 | `lib/crypto/mpi/` limb helpers: `mpihelp_cmp()`, `mpihelp_add_n()` and `mpihelp_sub_n()`, checked against 128-bit arithmetic | done |
-| 43+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 43 | `lib/crypto/mpi/` shifts: `mpihelp_lshift()` and `mpihelp_rshift()`, checked against 128-bit shifts | done |
+| 44+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -609,6 +610,8 @@ or `test` (a C test file ported to Rust tests).
 | `lib/crypto/mpi/mpih-cmp.c` | `lib/src/crypto/mpi.rs` | done | `mpihelp_cmp()`, most significant limb first |
 | `lib/crypto/mpi/generic_mpih-add1.c` | `lib/src/crypto/mpi.rs` | done | `mpihelp_add_n()` with the two-step carry, returning the carry out |
 | `lib/crypto/mpi/generic_mpih-sub1.c` | `lib/src/crypto/mpi.rs` | done | `mpihelp_sub_n()` with the two-step borrow, returning the borrow out |
+| `lib/crypto/mpi/generic_mpih-lshift.c` | `lib/src/crypto/mpi_shift.rs` | done | `mpihelp_lshift()`, returning the bits shifted out of the top limb |
+| `lib/crypto/mpi/generic_mpih-rshift.c` | `lib/src/crypto/mpi_shift.rs` | done | `mpihelp_rshift()`, returning the bits shifted out of the bottom limb |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
