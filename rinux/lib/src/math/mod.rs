@@ -56,3 +56,6 @@ pub(crate) const fn fls0(x: u64) -> u32 {
     debug_assert!(x != 0);
     63 - x.leading_zeros()
 }
+
+mod prime_numbers;
+pub use prime_numbers::{Primes, slow_is_prime_number, slow_next_prime_number};

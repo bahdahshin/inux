@@ -99,7 +99,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 61 | `lib/crypto/nh.c` and `include/crypto/nh.h`: the NH almost-universal hash over 16-byte units, checked against hand-computed single-unit and second-unit cases, plus length rules | done |
 | 62 | `lib/crypto/sm3.c`: the SM3 hash, checked against the two GB/T 32905 examples and split updates | done |
 | 63 | `crypto/sm4.c` (core) and `include/crypto/sm4.h`: the SM4 block cipher with its key schedule, checked against the GB/T 32907 example and a decryption round trip | partial |
-| 64+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 64 | `lib/math/prime_numbers.c`: the prime sieve over a caller bitmap, checked against trial division inside its range and walked for next_prime; growth and RCU wait | partial |
+| 65+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -248,6 +249,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/reciprocal_div.h` | `lib/src/math/reciprocal_div.rs` | done | |
 | `lib/math/polynomial.c` | `lib/src/math/polynomial.rs` | done | `polynomial_calc()` over slices of `PolynomialTerm`; the wrapping arithmetic matches the kernel's x86-64 build |
 | `include/linux/polynomial.h` | `lib/src/math/polynomial.rs` | done | `struct polynomial` and `struct polynomial_term` as `Polynomial` and `PolynomialTerm` |
+| `lib/math/prime_numbers.c` | `lib/src/math/prime_numbers.rs` | partial | `Primes`: the Eratosthenes sieve over a caller bitmap, `is_prime()` and `next_prime()`, with the C trial-division fallbacks; the on-demand growth, RCU and mutex wait |
 | `lib/math/rational.c` | `lib/src/math/rational.rs` | done | |
 | `include/linux/rational.h` | `lib/src/math/rational.rs` | done | |
 | `lib/math/div64.c` | `lib/src/math/div64.rs` | done | generic `mul_u64_add_u64_div_u64()` with both digit sizes |
