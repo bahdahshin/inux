@@ -40,6 +40,7 @@ pub mod math;
 pub mod md5;
 pub mod memweight;
 pub mod mktime;
+pub mod packing;
 pub mod parser;
 pub mod plist;
 pub mod random32;

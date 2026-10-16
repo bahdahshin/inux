@@ -58,7 +58,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 19 | `crypto/`: SHA-256 in rinux-lib, validated against the FIPS 180-4 vectors (host tests) and a boot-time known-answer check | done |
 | 20 | `fs/ext4/`: a read-only ext4 filesystem with extent-tree block mapping, mounted on a virtio-blk disk | done |
 | 21 | `lib/`: `memweight` (count set bits in a byte region) and `union_find` (disjoint sets with path halving and union by rank over an index-linked node slice), each with host tests; the rest of `lib/` that the kernel needs stays for later | done |
-| 22+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 22 | `lib/`: `packing` (bitfield pack/unpack with the endian and bit-order quirks) with the 34-case `packing_test.c` table ported in full; the struct field helpers wait for raw struct access | done |
+| 23+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -551,3 +552,6 @@ or `test` (a C test file ported to Rust tests).
 | `lib/memweight.c` | `lib/src/memweight.rs` | done | byte-wise count; the word-at-a-time `bitmap_weight()` path is not ported |
 | `include/linux/union_find.h` | `lib/src/union_find.rs` | done | `UfNode` with index parents in place of pointers |
 | `lib/union_find.c` | `lib/src/union_find.rs` | done | `uf_find` (path halving) and `uf_union` (by rank); host tests cover singletons, ranks, compression and a random cross-check against a naive partition |
+| `lib/packing.c` | `lib/src/packing.rs` | partial | `pack`/`unpack`/`packing` with `QUIRK_*`; the `pack_fields_*`/`unpack_fields_*` struct helpers need raw struct pointers and are not ported; the overflow WARN is dropped |
+| `include/linux/packing.h` | `lib/src/packing.rs` | partial | the quirk bits and `enum packing_op`; the `PACKED_FIELD` macros go with the struct helpers |
+| `lib/packing_test.c` | `lib/tests/packing_kunit.rs` | test | the 34-case pack and unpack table, every entry kept; the field-helper cases pending |
