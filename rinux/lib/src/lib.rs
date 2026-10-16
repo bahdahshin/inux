@@ -36,6 +36,7 @@ pub mod glob;
 pub mod hash;
 pub mod hexdump;
 pub mod hweight;
+pub mod iommu_helper;
 pub mod kfifo;
 pub mod kstrtox;
 pub mod linear_ranges;

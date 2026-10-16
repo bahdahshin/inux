@@ -67,7 +67,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 28 | `lib/math/polynomial.c`: integer polynomial evaluation with factor redistribution (`polynomial_calc()`), with the temperature conversion from the C comment checked against the real formula; a tolerance covers the truncation at each power | done |
 | 29 | `lib/clz_ctz.c`: the `__clzsi2`, `__ctzsi2`, `__clzdi2` and `__ctzdi2` builtins, with host tests; zero gives the bit width, where C's `__ffs(0)` is undefined | done |
 | 30 | `lib/seq_buf.c`: the bounded text buffer with its overflow marker, plus its formatted writes and hex dump; the seq_file, printk and user-copy parts wait for those subsystems | partial |
-| 31+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 31 | `lib/iommu-helper.c`: the free-area allocator that keeps allocations from crossing a power-of-two boundary, with the header's span and device-index helpers; host tests cover allocation, boundary skipping and exhaustion | done |
+| 32+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -571,6 +572,7 @@ or `test` (a C test file ported to Rust tests).
 | `lib/clz_ctz.c` | `lib/src/clz_ctz.rs` | done | the four GCC builtins; not called by kernel C, since Rust's bit intrinsics compile to the instruction |
 | `lib/seq_buf.c` | `lib/src/seq_buf.rs` | partial | `SeqBuf`: puts, putc, putmem, putmem_hex, printf and hex_dump with the overflow marker; seq_file, printk, binary printf, paths and user copies wait for those subsystems |
 | `include/linux/seq_buf.h` | `lib/src/seq_buf.rs` | partial | the buffer, used/left and overflow helpers; the `DECLARE_SEQ_BUF` macro is a constructor |
+| `lib/iommu-helper.c` | `lib/src/iommu_helper.rs` | done | `iommu_area_alloc()` returns `Option<usize>` for the C `-1`; `iommu_is_span_boundary()` and `iommu_device_max_index()` from the header |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
