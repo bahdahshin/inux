@@ -52,6 +52,9 @@ pub struct TaskStruct {
     pub comm: [u8; TASK_COMM_LEN],
     /// Runqueue linkage (`task_struct::run_list` of the RT scheduler).
     pub run_list: ListHead,
+    /// A wake-up that arrived while the task was not asleep, so its next
+    /// `block()` returns at once. Guarded by the runqueue lock.
+    pub wakeup_pending: bool,
     /// Base of the kernel stack allocation, and its page order.
     pub stack: u64,
     pub stack_order: u32,
@@ -76,6 +79,7 @@ impl TaskStruct {
             pid: 0,
             comm: [0; TASK_COMM_LEN],
             run_list: ListHead::new(),
+            wakeup_pending: false,
             stack: 0,
             stack_order: 0,
             kstack_top: 0,

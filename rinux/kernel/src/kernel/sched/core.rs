@@ -17,6 +17,7 @@
 use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, Ordering};
 
 use rinux_lib::list::{ListHead, iter, list_add_tail, list_del_init, list_entry};
+use rinux_lib::task_block::TaskBlocker;
 
 use crate::arch::x86::include::irqflags::{local_irq_restore, local_irq_save};
 use crate::arch::x86::kernel::process::{copy_thread, free_thread_stack, switch_to_asm};
@@ -126,6 +127,53 @@ fn dequeue_task(rq: &mut Rq, task: *mut TaskStruct) {
     // SAFETY: task is currently on the runqueue.
     unsafe { list_del_init(&mut (*task).run_list) };
     rq.nr_running -= 1;
+}
+
+/// The kernel's [`TaskBlocker`]: `block()` puts the running task to sleep and
+/// `wake()` makes a sleeping task runnable again. A task's id is its
+/// `TaskStruct` address, which the wait paths pass as `current()`.
+///
+/// A wake that arrives before the task has blocked is kept as
+/// `wakeup_pending`, so the block that follows returns at once. That closes
+/// the window between a waiter's condition check and its sleep.
+pub struct RunqueueBlocker;
+
+impl TaskBlocker for RunqueueBlocker {
+    fn block(&mut self, id: usize) {
+        let task = id as *mut TaskStruct;
+        debug_assert!(task == current(), "only the running task can block");
+        {
+            let mut rq = RQ.lock_irqsave();
+            // SAFETY: task is the running task, which is on the runqueue; the
+            // runqueue lock guards `wakeup_pending` and the linkage.
+            unsafe {
+                if (*task).wakeup_pending {
+                    (*task).wakeup_pending = false;
+                    return;
+                }
+                (*task).state.store(TASK_INTERRUPTIBLE, Ordering::Release);
+                dequeue_task(&mut rq, task);
+            }
+        }
+        // The state is no longer RUNNING, so __schedule() will not requeue
+        // this task; it sleeps until wake() enqueues it again.
+        schedule();
+    }
+
+    fn wake(&mut self, id: usize) {
+        let task = id as *mut TaskStruct;
+        let mut rq = RQ.lock_irqsave();
+        // SAFETY: task is a valid TaskStruct; the runqueue lock guards its
+        // state, linkage and `wakeup_pending`.
+        unsafe {
+            if (*task).state.load(Ordering::Acquire) == TASK_INTERRUPTIBLE {
+                (*task).state.store(TASK_RUNNING, Ordering::Release);
+                enqueue_task(&mut rq, task);
+            } else {
+                (*task).wakeup_pending = true;
+            }
+        }
+    }
 }
 
 /// `wake_up_new_task()`: make a freshly created task runnable.
