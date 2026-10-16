@@ -8,11 +8,14 @@
 //! `EINVAL` for a bad format, `ERANGE` for a bit past the mask, and
 //! `EOVERFLOW` for a number wider than 32 bits.
 //!
-//! Not ported yet: the user-copy wrapper `bitmap_parselist_user()`, the hex
-//! chunk parser `bitmap_parse()`, and the printers.
+//! Also ported: the hex chunk parser `bitmap_parse()`.
+//!
+//! Not ported yet: the user-copy wrapper `bitmap_parselist_user()` and the
+//! printers.
 
-use crate::bitmap::{bitmap_set, bitmap_zero};
+use crate::bitmap::{bitmap_clear, bitmap_set, bitmap_zero};
 use crate::errno::{EINVAL, EOVERFLOW, ERANGE, Result};
+use crate::hexdump::hex_to_bin;
 
 /// `struct region`: one comma-separated part of the list. The parts are
 /// inclusive, and `off` bits are set out of every `group_len` from `start`.
@@ -179,6 +182,107 @@ pub fn bitmap_parselist(buf: &[u8], mask: &mut [u64], nmaskbits: usize) -> Resul
         pos = parse_region(buf, p, &mut r)?;
         check_region(&r)?;
         set_region(&r, mask);
+    }
+    Ok(())
+}
+
+/// The byte at a signed position, NUL outside the string.
+fn at(buf: &[u8], pos: isize) -> u8 {
+    if pos < 0 { 0 } else { byte(buf, pos as usize) }
+}
+
+/// `bitmap_find_region_reverse()`: skip separators backwards from `end`.
+fn find_region_reverse(buf: &[u8], begin: isize, mut end: isize) -> isize {
+    while begin <= end && is_region_sep(at(buf, end)) {
+        end -= 1;
+    }
+    end
+}
+
+/// `bitmap_get_x32_reverse()`: read up to eight hex digits ending at `end`,
+/// scanning backwards and stopping at a separator. Returns the value and the
+/// position before the digits read. A ninth hex digit is `EOVERFLOW`.
+fn get_x32_reverse(buf: &[u8], begin: isize, mut end: isize) -> Result<(u32, isize)> {
+    let mut value: u32 = 0;
+    let mut shift = 0;
+    let mut done = false;
+    while shift < 32 {
+        let c = hex_to_bin(at(buf, end));
+        end -= 1;
+        if c < 0 {
+            return Err(EINVAL);
+        }
+        value |= (c as u32) << shift;
+        if begin > end || is_region_sep(at(buf, end)) {
+            done = true;
+            break;
+        }
+        shift += 4;
+    }
+    if !done {
+        let overflow = hex_to_bin(at(buf, end)) >= 0;
+        end -= 1;
+        if overflow {
+            return Err(EOVERFLOW);
+        }
+    }
+    Ok((value, end))
+}
+
+/// Store the `chunk`th 32-bit word of the mask, which is little-endian.
+fn set_chunk(mask: &mut [u64], chunk: usize, value: u32) {
+    let word = chunk / 2;
+    let shift = (chunk % 2) * 32;
+    mask[word] &= !(0xffff_ffffu64 << shift);
+    mask[word] |= u64::from(value) << shift;
+}
+
+/// `bitmap_parse()`: parse a hex string into `nmaskbits` bits. Each comma
+/// separated group holds 32 bits, read from the right, so a short group
+/// leaves its high bits zero. More than 32 bits in a group, or more groups
+/// than the mask holds, is `EOVERFLOW`; a non-hex character is `EINVAL`.
+///
+/// `buf` is read up to `buflen` bytes or the first newline or NUL, whichever
+/// comes first. Pass `usize::MAX` to read to the end of the slice.
+pub fn bitmap_parse(buf: &[u8], buflen: usize, mask: &mut [u64], nmaskbits: usize) -> Result<()> {
+    let s = &buf[..buflen.min(buf.len())];
+    let stop = s
+        .iter()
+        .position(|&c| c == b'\n' || c == 0)
+        .unwrap_or(s.len());
+
+    let chunks = nmaskbits.div_ceil(32);
+    let mut remaining = chunks;
+    let mut chunk = 0;
+    let begin: isize = 0;
+    let mut end = stop as isize - 1;
+
+    loop {
+        end = find_region_reverse(s, begin, end);
+        if begin > end {
+            break;
+        }
+        if remaining == 0 {
+            return Err(EOVERFLOW);
+        }
+        remaining -= 1;
+        let (value, next) = get_x32_reverse(s, begin, end)?;
+        end = next;
+        set_chunk(mask, chunk, value);
+        chunk += 1;
+    }
+
+    // Groups not written are cleared from the parsed width up to `nmaskbits`.
+    // A set bit between `nmaskbits` and the parsed width is an overflow.
+    let unset = (chunks - remaining) * 32;
+    if unset < nmaskbits {
+        bitmap_clear(mask, unset, nmaskbits - unset);
+        return Ok(());
+    }
+    for bit in nmaskbits..unset {
+        if (mask[bit / 64] >> (bit % 64)) & 1 == 1 {
+            return Err(EOVERFLOW);
+        }
     }
     Ok(())
 }

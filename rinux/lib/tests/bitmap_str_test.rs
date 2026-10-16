@@ -93,3 +93,64 @@ fn numbers_wider_than_32_bits_are_eoverflow() {
     assert_eq!(parse(b"4294967296", 8), Err(EOVERFLOW));
     assert_eq!(parse(b"99999999999999999999999", 8), Err(EOVERFLOW));
 }
+
+mod hex {
+    use rinux_lib::bitmap::bitmap_size;
+    use rinux_lib::bitmap_str::bitmap_parse;
+    use rinux_lib::errno::{EINVAL, EOVERFLOW};
+
+    /// The first word of the mask: every case here fits in one 64-bit word.
+    fn parse(s: &[u8], nbits: usize) -> Result<Vec<u64>, rinux_lib::errno::Errno> {
+        let mut mask = vec![0u64; bitmap_size(nbits)];
+        bitmap_parse(s, usize::MAX, &mut mask, nbits)?;
+        Ok(vec![mask[0]])
+    }
+
+    #[test]
+    fn a_short_string_fills_the_low_bits() {
+        assert_eq!(parse(b"ff", 8), Ok(vec![0xff]));
+        assert_eq!(parse(b"ff\n", 8), Ok(vec![0xff]));
+    }
+
+    #[test]
+    fn groups_split_on_commas_and_read_from_the_right() {
+        // "1,,5" is chunk 0 = 5 and chunk 1 = 1.
+        assert_eq!(parse(b"1,,5", 64), Ok(vec![0x0000_0001_0000_0005]));
+    }
+
+    #[test]
+    fn a_partial_last_group_is_cleared_above_nbits() {
+        // Two groups for 40 bits: 0xffffffff then 0xff; bits 40..63 stay clear.
+        assert_eq!(parse(b"ff,ffffffff", 40), Ok(vec![0x0000_00ff_ffff_ffff]));
+    }
+
+    #[test]
+    fn bits_past_nbits_are_eoverflow() {
+        assert_eq!(parse(b"1ff", 8), Err(EOVERFLOW));
+        assert_eq!(
+            parse(b"123456789", 32),
+            Err(EOVERFLOW),
+            "more than 32 bits in a group"
+        );
+    }
+
+    #[test]
+    fn a_non_hex_character_is_einval() {
+        assert_eq!(parse(b"x", 8), Err(EINVAL));
+        assert_eq!(parse(b"1g", 8), Err(EINVAL));
+    }
+
+    #[test]
+    fn an_empty_string_clears_the_mask() {
+        let mut mask = vec![u64::MAX];
+        bitmap_parse(b"", usize::MAX, &mut mask, 8).unwrap();
+        assert_eq!(mask[0] & 0xff, 0);
+    }
+
+    #[test]
+    fn buflen_limits_how_much_is_read() {
+        let mut mask = vec![0u64; 1];
+        bitmap_parse(b"ffff", 2, &mut mask, 8).unwrap();
+        assert_eq!(mask[0] & 0xff, 0xff);
+    }
+}
