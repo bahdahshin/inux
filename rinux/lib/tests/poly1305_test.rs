@@ -25,4 +25,3 @@ fn empty_message_gives_the_s_half_of_the_key() {
     let tag = poly1305(&key, &[]);
     assert_eq!(tag.to_vec(), key[16..32].to_vec());
 }
-

@@ -126,7 +126,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 88 | `include/linux/sched/prio.h` and `kernel/sched/syscalls.c` (`__normal_prio`): the priority ranges, nice conversions and the normal priority from policy, with tests for ranges, nice, real-time and deadline ordering | done |
 | 89 | `kernel/sched/completion.c` (non-blocking part): counting completions, complete_all staying in force, and try-wait, with tests including concurrent completers; blocking waits wait for the scheduler | partial |
 | 90 | `kernel/sched/cpupri.c` and `cpupri.h`: the level conversion, per-CPU level set, and the find over lower levels without a fitness function, with tests for the special levels, reversal, monotonicity, moving CPUs between levels, and the allowed-CPU choice | partial |
-| 91+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 92 | `lib/ucs2_string.c`: UCS-2 length, sized size, `strscpy`, `strncmp` and the UTF-8 size and conversion over `u16` slices, with host tests for each rule in the C comments (Linux has no KUnit file for it) | done |
+| 93+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
