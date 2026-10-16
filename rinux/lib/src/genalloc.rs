@@ -11,6 +11,38 @@
 //! NMI-safe `cmpxchg`, NUMA ownership or `gen_pool_dma_*` helpers.
 
 use crate::bitmap::{bitmap_clear, bitmap_find_next_zero_area, bitmap_set};
+use crate::find_bit::find_next_bit;
+
+/// The region policy for an allocation, as `genpool_algo_t` picks it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GenAlgo {
+    /// `gen_pool_first_fit()`: the first run of free units that is big enough.
+    FirstFit,
+    /// `gen_pool_best_fit()`: the smallest run of free units that is big enough.
+    BestFit,
+}
+
+/// `gen_pool_best_fit()`: the start of the smallest free run of `nr` units or
+/// more in `map` (`size` units), or `size` if none is big enough. A run of
+/// exactly `nr` is taken at once.
+fn best_fit(map: &[u64], size: usize, nr: usize) -> usize {
+    let mut start_bit = size;
+    let mut len = size + 1;
+    let mut index = bitmap_find_next_zero_area(map, size, 0, nr, 0);
+
+    while index < size {
+        let next_bit = find_next_bit(map, size, index + nr);
+        if next_bit - index < len {
+            len = next_bit - index;
+            start_bit = index;
+            if len == nr {
+                return start_bit;
+            }
+        }
+        index = bitmap_find_next_zero_area(map, size, next_bit + 1, nr, 0);
+    }
+    start_bit
+}
 
 /// A pool of memory handed out in `1 << order`-byte units.
 pub struct GenPool<'a> {
@@ -53,9 +85,16 @@ impl<'a> GenPool<'a> {
         (size + self.unit() - 1) >> self.order
     }
 
-    /// `gen_pool_alloc()`: reserve `size` bytes, returning their start address
-    /// or `None` if the pool cannot satisfy the request.
+    /// `gen_pool_alloc()`: reserve `size` bytes with the first-fit policy,
+    /// returning their start address or `None` if the pool cannot satisfy the
+    /// request.
     pub fn alloc(&mut self, size: usize) -> Option<u64> {
+        self.alloc_with(size, GenAlgo::FirstFit)
+    }
+
+    /// `gen_pool_alloc_algo()`: as [`alloc`](Self::alloc), but the region is
+    /// chosen by `algo`.
+    pub fn alloc_with(&mut self, size: usize, algo: GenAlgo) -> Option<u64> {
         if size == 0 {
             return None;
         }
@@ -63,7 +102,10 @@ impl<'a> GenPool<'a> {
         if nbits > self.nunits {
             return None;
         }
-        let start = bitmap_find_next_zero_area(self.bits, self.nunits, 0, nbits, 0);
+        let start = match algo {
+            GenAlgo::FirstFit => bitmap_find_next_zero_area(self.bits, self.nunits, 0, nbits, 0),
+            GenAlgo::BestFit => best_fit(self.bits, self.nunits, nbits),
+        };
         if start >= self.nunits {
             return None;
         }
