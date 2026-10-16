@@ -15,6 +15,7 @@
 #![no_std]
 
 pub mod bug;
+pub mod clz_ctz;
 
 pub mod argv_split;
 pub mod base64;
