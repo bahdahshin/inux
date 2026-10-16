@@ -123,7 +123,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 85 | `kernel/sched/cpudeadline.c`: the per-CPU max-heap of deadlines, set, clear, root and find, checked against a brute-force maximum over 2000 random updates | partial |
 | 86 | `kernel/sched/deadline.c` (CBS rules): budget replenishment by whole periods, the new-period reset, and the bandwidth overflow test, with tests for fresh, overrun, lagging and over- and under-bandwidth cases | partial |
 | 87 | `kernel/sched/sched.h` (uclamp buckets): the clamp-value to bucket mapping with its rounded width, tests for the edges, the top bucket and monotonicity | done |
-| 88+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 88 | `include/linux/sched/prio.h` and `kernel/sched/syscalls.c` (`__normal_prio`): the priority ranges, nice conversions and the normal priority from policy, with tests for ranges, nice, real-time and deadline ordering | done |
+| 89+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -493,6 +494,8 @@ or `test` (a C test file ported to Rust tests).
 | `kernel/sched/cputime.c` (`cputime_adjust`) | `lib/src/cputime.rs` | partial | the monotonic split of precise runtime into user and system time, with the sample and previous state explicit; the per-task lock and the tick accounting wait for the scheduler |
 | `kernel/sched/deadline.c` (CBS rules) | `lib/src/sched_dl_cbs.rs` | partial | `replenish_dl_new_period()`, `replenish_dl_entity()` and `dl_entity_overflow()` over explicit parameters; the deferred-server, yield and tracing paths and the rq clock wait for the scheduler |
 | `kernel/sched/sched.h` (`DL_SCALE`) | `lib/src/sched_dl_cbs.rs` | done | the overflow scale |
+| `include/linux/sched/prio.h` | `lib/src/sched_prio.rs` | done | the nice and priority constants, the conversions, and the policy numbers used by `normal_prio()` |
+| `kernel/sched/syscalls.c` (`__normal_prio`) | `lib/src/sched_prio.rs` | done | `normal_prio()`: deadline, then real-time by rt priority, then nice |
 | `kernel/sched/sched.h` (`uclamp_bucket_id`) | `lib/src/sched_uclamp.rs` | done | `UCLAMP_BUCKET_DELTA`, `uclamp_bucket_id()` and `DIV_ROUND_CLOSEST`, with the default five-bucket count from `init/Kconfig` |
 | `kernel/sched/cpudeadline.c` | `lib/src/cpudl.rs` | partial | `cpudl_set()`, `cpudl_clear()`, `cpudl_maximum()` and the heapify functions over CPU ids, with `find()` without a mask; the cpumask search with capacity fitting and the lock wait |
 | `kernel/sched/loadavg.c` | `lib/src/loadavg.rs` | partial | `calc_load()`, `fixed_power_int()`, `calc_load_n()`, the `avenrun[]` update and `LOAD_INT`/`LOAD_FRAC`; the NO_HZ folding and the per-CPU active counts wait for the scheduler |

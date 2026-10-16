@@ -85,6 +85,7 @@ pub mod sched_dl_cbs;
 pub mod sched_eevdf;
 pub mod sched_fair;
 pub mod sched_pelt;
+pub mod sched_prio;
 pub mod sched_rt_prio;
 pub mod sched_uclamp;
 pub mod seq_buf;
