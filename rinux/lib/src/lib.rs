@@ -40,6 +40,7 @@ pub mod crypto;
 pub mod ctype;
 pub mod dec_and_lock;
 pub mod decompress;
+pub mod dynamic_queue_limits;
 pub mod earlycpio;
 pub mod errname;
 pub mod errno;
