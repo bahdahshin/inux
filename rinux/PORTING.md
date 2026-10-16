@@ -119,7 +119,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 81 | `kernel/sched/wait.c`: wait queue placement, removal and the wake walk with exclusive counting, with tests for head and tail order, the count limit, a stop, and removal; the locking and sleep paths wait | partial |
 | 82 | `kernel/sched/pelt.c` and `kernel/sched/sched-pelt.h`: PELT decay and segment accumulation with the copied table, checked against the real exponential, the half-life per period, and the cutoff; the per-entity averages wait | partial |
 | 83 | `kernel/sched/loadavg.c` and `include/linux/sched/loadavg.h`: the load-average fixed-point decay, the power and the avenrun update, with tests against the real exponential, convergence, clamping and the fraction format | partial |
-| 84+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 84 | `kernel/sched/cputime.c` (`cputime_adjust`): the monotonic split of runtime into user and system time, with tests that the parts sum to the total, follow the tick ratio, never go backwards over 500 samples, and ignore a non-monotonic total | partial |
+| 85+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -486,6 +487,7 @@ or `test` (a C test file ported to Rust tests).
 | `kernel/sched/core.c` (weight tables) | `lib/src/sched_fair.rs` | done | `sched_prio_to_weight` and `sched_prio_to_wmult`, extracted from the C source |
 | `kernel/sched/core.c` | `kernel/src/kernel/sched/core.rs` | partial | runqueue, __schedule/context_switch/finish_task_switch, schedule(), wake_up_new_task, sched_tick, do_exit, kernel_thread, cpu idle loop, sched_init; round-robin only, one CPU, no CFS/EEVDF, load balancing or mm switch |
 | `kernel/sched/sched.h` (`rt_prio_array`) | `lib/src/sched_rt_prio.rs` | partial | the RT priority array: one FIFO per priority over entity ids, a bitmap with the delimiter bit, enqueue, dequeue and the highest-priority pick; the rt_rq and bandwidth logic wait |
+| `kernel/sched/cputime.c` (`cputime_adjust`) | `lib/src/cputime.rs` | partial | the monotonic split of precise runtime into user and system time, with the sample and previous state explicit; the per-task lock and the tick accounting wait for the scheduler |
 | `kernel/sched/loadavg.c` | `lib/src/loadavg.rs` | partial | `calc_load()`, `fixed_power_int()`, `calc_load_n()`, the `avenrun[]` update and `LOAD_INT`/`LOAD_FRAC`; the NO_HZ folding and the per-CPU active counts wait for the scheduler |
 | `include/linux/sched/loadavg.h` | `lib/src/loadavg.rs` | done | `FSHIFT`, `FIXED_1`, `EXP_1`, `EXP_5`, `EXP_15` and the load macros |
 | `kernel/sched/pelt.c` | `lib/src/sched_pelt.rs` | partial | `decay_load()` and `__accumulate_pelt_segments()` with the copied inverse-decay table; the per-entity update and the runnable and util averages wait for the scheduler |
