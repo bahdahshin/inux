@@ -58,6 +58,7 @@ pub mod iomap_copy;
 pub mod iomem_copy;
 pub mod iommu_helper;
 pub mod kfifo;
+pub mod klist;
 pub mod kstrtox;
 pub mod libgcc;
 pub mod linear_ranges;
