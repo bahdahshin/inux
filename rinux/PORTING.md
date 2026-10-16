@@ -153,7 +153,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 116 | `lib/src/printk.rs`: the log levels and a `Sink` that lib functions print through, one line at a time, so the lib needs no global state; the kernel passes a sink that calls its `printk()`. `print_hex_dump()` uses it, with the address, offset and none prefixes and the line limit; host tests check the rows, prefixes, levels and truncation | done |
 | 117 | `lib/src/uaccess.rs`: the `UserMemory` trait (`copy_from_user()` and `copy_to_user()` returning the bytes not copied), `FlatUser` as a flat user address space, and the byte-wise `strncpy_from_user_mem()`, `strnlen_user_mem()` and `check_zeroed_user_mem()`; `kstrto*_from_user()` for the 64- and 32-bit integers and the boolean; the kernel implements `UserMemory` over the task's address space with the fault fixup | done |
 | 118 | `lib/kstrtox.c`: the 16- and 8-bit `kstrtou16_from_user()`, `kstrtos16_from_user()`, `kstrtou8_from_user()` and `kstrtos8_from_user()`, with the copy sized as in C and tests for the range and fault rules | done |
-| 119+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 119 | `lib/bitmap-str.c`: `bitmap_parse_user()` and `bitmap_parselist_user()` over `UserMemory`, with the `memdup_user_nul()` copy in `alloc_helpers` behind the `alloc` feature; host tests cover the hex and list formats, the copy and fault rules, and a bad string | done |
+| 120+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -365,7 +366,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/parser.h` | `lib/src/parser.rs` | done | `substring_t` is a byte slice |
 | `lib/bitmap.c` | `lib/src/bitmap.rs` | partial | `bitmap_alloc()` family is in `alloc_helpers` behind the `alloc` feature; `devm_*()` wait for devres |
 | `include/linux/bitmap.h` | `lib/src/bitmap.rs` | partial | as `lib/bitmap.c`; compile-time fast paths not needed |
-| `lib/bitmap-str.c` | `lib/src/bitmap.rs` | partial | `*_user()` wait for uaccess; printing fills the requested window without `kasprintf()` |
+| `lib/bitmap-str.c` | `lib/src/bitmap_str.rs` | partial | `bitmap_parse_user()` and `bitmap_parselist_user()` are in `alloc_helpers` behind the `alloc` feature; the printing `*_user()` side is not ported |
 | `include/linux/bitmap-str.h` | `lib/src/bitmap.rs` | partial | as `lib/bitmap-str.c` |
 | `lib/find_bit.c` | `lib/src/find_bit.rs` | partial | `find_random_bit()` waits for the RNG |
 | `include/linux/find.h` | `lib/src/find_bit.rs` | done | `for_each_*` loops are iterators |

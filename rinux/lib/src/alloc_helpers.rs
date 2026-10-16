@@ -17,7 +17,10 @@
 
 use alloc::vec::Vec;
 
+use crate::bitmap_str::{bitmap_parse, bitmap_parselist};
 use crate::bitops::bits_to_longs;
+use crate::errno::Result;
+use crate::uaccess::{UserMemory, copy_in};
 use crate::vsprintf::{Arg, vsnprintf};
 
 /// `kasprintf()`: format into a freshly allocated buffer, sized by a first
@@ -47,6 +50,40 @@ pub fn bitmap_alloc(nbits: usize) -> Vec<u64> {
 /// `bitmap_zalloc()`: the same as [`bitmap_alloc`], which already zeroes.
 pub fn bitmap_zalloc(nbits: usize) -> Vec<u64> {
     bitmap_alloc(nbits)
+}
+
+/// `memdup_user_nul()`: copies `len` bytes from user memory into a buffer
+/// with a NUL after them. A copy that faults is `EFAULT`.
+pub fn memdup_user_nul(user: &impl UserMemory, src: usize, len: usize) -> Result<Vec<u8>> {
+    let mut buf = alloc::vec![0u8; len + 1];
+    copy_in(user, &mut buf[..len], src)?;
+    Ok(buf)
+}
+
+/// `bitmap_parse_user()`: copies `ulen` bytes of user memory and parses them
+/// as [`bitmap_parse`] does. The string is NUL-terminated by the copy.
+pub fn bitmap_parse_user(
+    user: &impl UserMemory,
+    src: usize,
+    ulen: usize,
+    mask: &mut [u64],
+    nmaskbits: usize,
+) -> Result<()> {
+    let buf = memdup_user_nul(user, src, ulen)?;
+    bitmap_parse(&buf, usize::MAX, mask, nmaskbits)
+}
+
+/// `bitmap_parselist_user()`: as [`bitmap_parse_user`], for the list format
+/// that [`bitmap_parselist`] reads.
+pub fn bitmap_parselist_user(
+    user: &impl UserMemory,
+    src: usize,
+    ulen: usize,
+    mask: &mut [u64],
+    nmaskbits: usize,
+) -> Result<()> {
+    let buf = memdup_user_nul(user, src, ulen)?;
+    bitmap_parselist(&buf, mask, nmaskbits)
 }
 
 #[cfg(test)]
