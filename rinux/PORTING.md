@@ -91,7 +91,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 52 | `lib/irq_regs.c` and `include/asm-generic/irq_regs.h`: the per-CPU interrupt frame, using `PerCpu` from rinux-lib; the kernel builds for x86_64-unknown-none | done |
 | 53 | `lib/lockref.c` and `include/linux/lockref.h`: reference counting with the lock and count in one word, the cmpxchg fast path and the locked fallback, with fast-path, dead-object and multi-thread tests | done |
 | 54 | `lib/lwq.c` and `include/linux/lwq.h`: a lock-free producer queue with a spinlocked consumer side, tested with four producers and a consumer on threads | partial |
-| 55+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 55 | `lib/dec_and_lock.c`: `atomic_dec_and_lock()`, dropping without the lock unless the count may reach zero, with a thread test that exactly one drop wins | partial |
+| 56+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -642,6 +643,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/lockref.h` | `lib/src/lockref.rs` | done | `LOCKREF_DEAD_VAL` and the `mark_dead()` helper |
 | `lib/lwq.c` | `lib/src/lwq.rs` | partial | `enqueue()` is a lock-free `cmpxchg` push onto the producer stack; `dequeue()` and `dequeue_all()` take a spinlock and reverse the stack into arrival order, with the `TRANSFER` marker as C's `(void *)1`; the `lwq_for_each_safe` macro is not ported |
 | `include/linux/lwq.h` | `lib/src/lwq.rs` | partial | the `lwq_empty`, `lwq_enqueue` and `lwq_dequeue` operations; the atomics are not modelled |
+| `lib/dec_and_lock.c` | `lib/src/dec_and_lock.rs` | partial | `atomic_dec_and_lock()` over an `AtomicI32` and an `AtomicBool` spinlock; the `irqsave` and `raw` variants wait for the kernel's interrupt and raw-lock wrappers |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |

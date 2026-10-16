@@ -31,6 +31,7 @@ pub mod cmdline;
 pub mod crc;
 pub mod crypto;
 pub mod ctype;
+pub mod dec_and_lock;
 pub mod errname;
 pub mod errno;
 pub mod errseq;
