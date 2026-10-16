@@ -24,6 +24,7 @@ pub mod cpudl;
 pub mod cputime;
 
 pub mod argv_split;
+pub mod atomic64;
 pub mod base64;
 pub mod bcd;
 pub mod bitfield;

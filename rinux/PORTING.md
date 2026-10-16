@@ -143,7 +143,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 106 | `include/linux/util_macros.h` (`find_closest()`, `find_closest_descending()`) as slice functions that take the array and its length in one value, with the midpoint tie rule kept; `lib/tests/util_macros_kunit.c` ported in full, every range of both tables | done |
 | 107 | `lib/list_debug.c`: the `list_add` and `list_del` consistency checks, each returning the first failed check as a `ListCorruption` (in C order) with the poison values; the printk and stack dump are left to the caller; host tests cover each check and the valid cases | done |
 | 108 | `lib/debug_locks.c`: the global `debug_locks` and `debug_locks_silent` switches as a `DebugLocks` value (with `DEBUG_LOCKS` as the kernel instance); `debug_locks_off()` returns true only for the first switch-off that is not silent, runs the console action passed in, and a silent switch-off still turns debugging off; host tests cover each case | done |
-| 109+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 109 | `lib/atomic64.c`: the 64-bit atomics (`read`, `set`, the add/sub/and/or/xor forms in fetch and return variants, `dec_if_positive`, `cmpxchg`, `xchg`, `fetch_add_unless`) over `AtomicI64` with no lock table, since Rust atomics need no spinlock fallback; host tests cover each op and a 4-thread counter | done |
+| 110+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -771,3 +772,5 @@ or `test` (a C test file ported to Rust tests).
 | list debug tests | `lib/tests/list_debug_test.rs` | test | a valid ring passes; each add and del check fires in C order with the poison values |
 | `lib/debug_locks.c` | `lib/src/debug_locks.rs` | done | `DebugLocks::off()` in place of `debug_locks_off()`; the console call is a closure, and the `debug_locks` and `debug_locks_silent` globals are fields with the `DEBUG_LOCKS` instance |
 | debug locks tests | `lib/tests/debug_locks_test.rs` | test | first and later switch-offs, silent switch-off, the no-op repeat, and the silent setting round trip |
+| `lib/atomic64.c` | `lib/src/atomic64.rs` | done | the generic spinlock fallback is replaced by `AtomicI64`; `fetch_*` returns the old value and `*_return` the new one |
+| atomic64 tests | `lib/tests/atomic64_test.rs` | test | each operation's result, `dec_if_positive` at zero, `add_unless` and `inc_not_zero`, and a 4-thread count |
