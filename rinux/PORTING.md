@@ -128,7 +128,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 90 | `kernel/sched/cpupri.c` and `cpupri.h`: the level conversion, per-CPU level set, and the find over lower levels without a fitness function, with tests for the special levels, reversal, monotonicity, moving CPUs between levels, and the allowed-CPU choice | partial |
 | 92 | `lib/ucs2_string.c`: UCS-2 length, sized size, `strscpy`, `strncmp` and the UTF-8 size and conversion over `u16` slices, with host tests for each rule in the C comments (Linux has no KUnit file for it) | done |
 | 93 | `lib/ts_fsm.c`: the naive finite-state text search over a token chain (literal and ctype classes; single, optional, zero-or-more and one-or-more repeats; strict and head-ignoring starts), with the `fsm_init()` checks; the `textsearch` framework and its fragmented-buffer callback are dropped, so the search takes one `&[u8]`, with host tests for each repeat kind | done |
-| 94+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 94 | `lib/bitmap-str.c` (list format): `bitmap_parselist()` with its region parser, the `all` and `N` tokens, the strided `range:used/group` form, and the C error codes, with host tests on the C comment's examples; the user-copy wrapper, the hex chunk parser `bitmap_parse()` and the printers are not ported yet | partial |
+| 95+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
