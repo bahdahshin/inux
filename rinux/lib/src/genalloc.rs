@@ -28,6 +28,10 @@ pub enum GenAlgo {
     /// `gen_pool_fixed_alloc()`: exactly `offset` bytes into the chunk, if that
     /// region is free. `offset` must be a whole number of units.
     Fixed(u64),
+    /// `gen_pool_first_fit_order_align()`: the first run that starts at a
+    /// multiple of the request rounded up to a power of two, in units. The
+    /// alignment is of the unit index, not the absolute address.
+    OrderAlign,
 }
 
 /// `gen_pool_best_fit()`: the start of the smallest free run of `nr` units or
@@ -113,6 +117,10 @@ impl<'a> GenPool<'a> {
         let start = match algo {
             GenAlgo::FirstFit => bitmap_find_next_zero_area(self.bits, self.nunits, 0, nbits, 0),
             GenAlgo::BestFit => best_fit(self.bits, self.nunits, nbits),
+            GenAlgo::OrderAlign => {
+                let align_mask = nbits.next_power_of_two() - 1;
+                bitmap_find_next_zero_area(self.bits, self.nunits, 0, nbits, align_mask)
+            }
             GenAlgo::Fixed(offset) => {
                 // C: an offset that is not a whole number of units is no fit.
                 if offset & (self.unit() as u64 - 1) != 0 {
