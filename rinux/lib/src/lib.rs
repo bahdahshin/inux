@@ -101,6 +101,7 @@ pub mod strncpy_from_user;
 pub mod strnlen_user;
 pub mod timerqueue;
 pub mod ts_bm;
+pub mod ts_fsm;
 pub mod ts_kmp;
 pub mod ucs2_string;
 pub mod union_find;
