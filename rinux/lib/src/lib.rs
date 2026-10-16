@@ -61,6 +61,7 @@ pub mod oid_registry;
 pub mod oid_registry_data;
 pub mod packing;
 pub mod parser;
+pub mod percpu;
 pub mod plist;
 pub mod random32;
 pub mod ratelimit;
