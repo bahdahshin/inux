@@ -114,6 +114,7 @@ pub mod ts_kmp;
 pub mod ucs2_string;
 pub mod union_find;
 pub mod usercopy;
+pub mod util_macros;
 pub mod uuid;
 pub mod vsprintf;
 pub mod wait;

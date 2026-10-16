@@ -140,7 +140,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 103 | `lib/math/test_div64.c`: the 12 x 12 table of 64-by-32 quotients and remainders, run through `do_div()` and the generic `__div64_32()`; the constant-divisor path and the 1024-iteration timing loop are not ported | done |
 | 104 | `include/linux/bitfield.h`: the `FIELD_PREP`/`FIELD_GET`/`FIELD_MAX`/`FIELD_FIT`/`FIELD_MODIFY`/`FIELD_GET_SIGNED` helpers over a `Field` trait for `u8`..`u64`, `field_multiplier()`/`field_mask()`, and the generated `u8_encode_bits()` .. `be64_get_bits()` family (the `le`/`be` forms work on the stored representation); the compile-time mask and overflow checks become a bad-mask panic and run-time masking. `lib/tests/bitfield_kunit.c` ported in full | done |
 | 105 | `include/linux/compiler.h` (`is_signed_type()`) as the `IsSignedType` trait: the integer types, `bool`, `char` and raw pointers are implemented here, and user enums implement it themselves; `lib/tests/is_signed_type_kunit.c` ported in full | done |
-| 106+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 106 | `include/linux/util_macros.h` (`find_closest()`, `find_closest_descending()`) as slice functions that take the array and its length in one value, with the midpoint tie rule kept; `lib/tests/util_macros_kunit.c` ported in full, every range of both tables | done |
+| 107+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -335,6 +336,8 @@ or `test` (a C test file ported to Rust tests).
 | `lib/tests/bitfield_kunit.c` | `lib/tests/bitfield_kunit.rs` | test | all `CHECK_ENC_GET` and `CHECK` cases, plus `FIELD_*`, `replace_bits` and the bad-mask panic |
 | `include/linux/compiler.h` (`is_signed_type`) | `lib/src/is_signed_type.rs` | done | trait over the integer, bool, char and raw-pointer types |
 | `lib/tests/is_signed_type_kunit.c` | `lib/tests/is_signed_type_kunit.rs` | test | the full C type table; the enums are modelled with matching `repr` |
+| `include/linux/util_macros.h` (`find_closest`) | `lib/src/util_macros.rs` | done | `find_closest()` and `find_closest_descending()` over slices |
+| `lib/tests/util_macros_kunit.c` | `lib/tests/util_macros_kunit.rs` | test | every range of the ascending and descending tables |
 | `lib/test_ida.c` | `lib/tests/test_ida_test.rs` | test | the parts that fit a fixed bitmap; max-id, destroy and find_first wait for a growing IDA |
 | `lib/test_memcat_p.c` | `lib/tests/test_memcat_p_test.rs` | test | |
 | `lib/test_bitops.c` | `lib/tests/test_bitops_test.rs` | test | `fns()` timing loop not ported |
