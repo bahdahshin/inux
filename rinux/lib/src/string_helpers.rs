@@ -11,7 +11,7 @@
 //! `kasprintf_strarray()` and the other allocating helpers, the
 //! `match_string()` family, and `memcpy_and_pad()`'s fortify hooks.
 
-use crate::errno::{EINVAL, ENOENT, Result};
+use crate::errno::{EINVAL, Result};
 use crate::hexdump::hex_to_bin;
 
 /// `STRING_UNITS_10`: powers of 1000 (SI).
@@ -578,6 +578,7 @@ pub fn strreplace(s: &mut [u8], old: u8, new: u8) {
 #[cfg(feature = "alloc")]
 pub fn parse_int_array(buf: &[u8]) -> Result<alloc::vec::Vec<i32>> {
     use crate::cmdline::get_options;
+    use crate::errno::ENOENT;
 
     // Validation pass: with nints of 0, element 0 gets the count.
     let mut count = [0i32; 1];
@@ -595,6 +596,7 @@ pub fn parse_int_array(buf: &[u8]) -> Result<alloc::vec::Vec<i32>> {
 #[cfg(all(test, feature = "alloc"))]
 mod parse_int_array_tests {
     use super::*;
+    use crate::errno::ENOENT;
 
     #[test]
     fn comma_separated_integers_are_counted_and_listed() {

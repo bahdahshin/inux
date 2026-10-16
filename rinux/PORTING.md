@@ -167,7 +167,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 130 | `lib/genalloc.c`: `gen_pool_fixed_alloc()` as `GenAlgo::Fixed`, which takes the region only at its offset, refusing an offset that is not a whole unit, one past the chunk, or one that is already taken; host tests cover each | done |
 | 131 | `lib/genalloc.c`: `gen_pool_first_fit_order_align()` as `GenAlgo::OrderAlign`, which aligns the unit index to the request rounded up to a power of two; host tests cover the three-unit case, a one-unit request and an aligned run that does not fit | done |
 | 132 | `lib/genalloc.c`: the growable pool, `GenPoolVec` behind `alloc`, where `gen_pool_add()` never runs out of chunks and allocation, free, `avail`, `size`, `has_addr` and `virt_to_phys` work across them newest first; host tests add more chunks than the fixed pool holds, and check allocation order, free and the policies across chunks | done |
-| 133+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 133 | kernel wiring of the lib hooks: `PoolRandom` in `drivers/char/random.rs` implements `RandomSource` over the locked pool, and `lib_line()` in `kernel/printk.rs` is the line sink for the lib's printing functions, emitting through `vprintk_emit()` with the newline added; the kernel crate builds for `x86_64-unknown-none`. Nothing in the kernel calls these yet, and the kernel's test harness is off, so this is verified by the build only | done |
+| 134+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 

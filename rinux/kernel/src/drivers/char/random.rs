@@ -30,6 +30,21 @@ pub fn get_random_bytes(buf: &mut [u8]) {
     POOL.lock().fill_bytes(buf);
 }
 
+/// The kernel's random source for the lib helpers that draw from one
+/// (`find_random_bit()`, the random UUID and GUID generators). Each draw takes
+/// the pool lock, as the device reads do.
+pub struct PoolRandom;
+
+impl rinux_lib::random::RandomSource for PoolRandom {
+    fn get_random_u32(&mut self) -> u32 {
+        POOL.lock().next_u32()
+    }
+
+    fn get_random_bytes(&mut self, buf: &mut [u8]) {
+        get_random_bytes(buf);
+    }
+}
+
 /// `/dev/random` and `/dev/urandom`: both read from the pool and never block.
 pub struct RandomFop;
 

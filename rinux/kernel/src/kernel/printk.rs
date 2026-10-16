@@ -360,6 +360,32 @@ pub fn bust_spinlocks() {
     unsafe { PRINTK.force_unlock() };
 }
 
+/// The line sink for the lib's printing functions (`print_hex_dump()`, the
+/// ratelimit report, `seq_buf_do_printk()`): one line at `level`, printed with
+/// the newline that the kernel log needs. Bytes that are not UTF-8 are shown
+/// as `?`.
+pub fn lib_line(level: i32, line: &[u8]) {
+    struct Line<'a>(&'a [u8]);
+    impl fmt::Display for Line<'_> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match core::str::from_utf8(self.0) {
+                Ok(s) => f.write_str(s),
+                Err(_) => {
+                    for &b in self.0 {
+                        if b.is_ascii() {
+                            f.write_char(b as char)?;
+                        } else {
+                            f.write_char('?')?;
+                        }
+                    }
+                    Ok(())
+                }
+            }
+        }
+    }
+    vprintk_emit(level, format_args!("{}\n", Line(line)));
+}
+
 /// `printk(level, fmt, ...)`.
 #[macro_export]
 macro_rules! printk {
