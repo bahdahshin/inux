@@ -90,7 +90,7 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 51 | `include/linux/percpu-defs.h`: a per-CPU slot array (`PerCpu<T, N>`) with the this_cpu access rule, with host tests for independence and bounds | partial |
 | 52 | `lib/irq_regs.c` and `include/asm-generic/irq_regs.h`: the per-CPU interrupt frame, using `PerCpu` from rinux-lib; the kernel builds for x86_64-unknown-none | done |
 | 53 | `lib/lockref.c` and `include/linux/lockref.h`: reference counting with the lock and count in one word, the cmpxchg fast path and the locked fallback, with fast-path, dead-object and multi-thread tests | done |
-| 54 | `lib/lwq.c` and `include/linux/lwq.h`: the queue order (producer stack, consumer list, reversal on demand), sequential only, with order tests | partial |
+| 54 | `lib/lwq.c` and `include/linux/lwq.h`: a lock-free producer queue with a spinlocked consumer side, tested with four producers and a consumer on threads | partial |
 | 55+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
@@ -640,7 +640,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/asm-generic/irq_regs.h` | `kernel/src/kernel/irq/regs.rs` | done | the accessors; the `Option` return stands in for the null pointer |
 | `lib/lockref.c` | `lib/src/lockref.rs` | done | `Lockref` with lock and count in one `AtomicU64`; the `CMPXCHG_LOOP` with 100 retries and the lock fallback; `put_return()` and `put_or_lock()` keep C's return conventions |
 | `include/linux/lockref.h` | `lib/src/lockref.rs` | done | `LOCKREF_DEAD_VAL` and the `mark_dead()` helper |
-| `lib/lwq.c` | `lib/src/lwq.rs` | partial | the queue order: `enqueue()` onto the producer stack, `dequeue()` and `dequeue_all()` reversing it into arrival order over node ids; the lock-free shared access and the `lwq_for_each_safe` macro wait for the kernel's shared wrapper |
+| `lib/lwq.c` | `lib/src/lwq.rs` | partial | `enqueue()` is a lock-free `cmpxchg` push onto the producer stack; `dequeue()` and `dequeue_all()` take a spinlock and reverse the stack into arrival order, with the `TRANSFER` marker as C's `(void *)1`; the `lwq_for_each_safe` macro is not ported |
 | `include/linux/lwq.h` | `lib/src/lwq.rs` | partial | the `lwq_empty`, `lwq_enqueue` and `lwq_dequeue` operations; the atomics are not modelled |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
