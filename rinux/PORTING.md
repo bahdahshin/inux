@@ -93,7 +93,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 54 | `lib/lwq.c` and `include/linux/lwq.h`: a lock-free producer queue with a spinlocked consumer side, tested with four producers and a consumer on threads | partial |
 | 55 | `lib/dec_and_lock.c`: `atomic_dec_and_lock()`, dropping without the lock unless the count may reach zero, with a thread test that exactly one drop wins | partial |
 | 56 | `lib/crypto/utils.c` and `lib/crypto/memneq.c`: byte-wise XOR helpers and the constant-time inequality test, with tests at every length and position | done |
-| 57+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 57 | `lib/crypto/blake2s.c` and `include/crypto/blake2s.h`: unkeyed BLAKE2s, with the RFC 7693 empty and abc vectors and block-edge split updates | partial |
+| 58+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -647,6 +648,8 @@ or `test` (a C test file ported to Rust tests).
 | `lib/dec_and_lock.c` | `lib/src/dec_and_lock.rs` | partial | `atomic_dec_and_lock()` over an `AtomicI32` and an `AtomicBool` spinlock; the `irqsave` and `raw` variants wait for the kernel's interrupt and raw-lock wrappers |
 | `lib/crypto/utils.c` | `lib/src/crypto/utils.rs` | done | `crypto_xor_cpy()` and `crypto_xor()`; the word-stride paths are speed-only and are not ported |
 | `lib/crypto/memneq.c` | `lib/src/crypto/memneq.rs` | done | `crypto_memneq()` generic loop, OR-accumulating the XOR of each byte pair, with `black_box` in place of `OPTIMIZER_HIDE_VAR`; the arch versions compute the same result |
+| `lib/crypto/blake2s.c` | `lib/src/crypto/blake2s.rs` | partial | the generic compression, `update()` and `final()` for unkeyed BLAKE2s-256 and shorter outputs, checked against the RFC 7693 vectors; the keyed init and the arch versions wait |
+| `include/crypto/blake2s.h` | `lib/src/crypto/blake2s.rs` | partial | `blake2s_init()` (unkeyed); `blake2s_init_key()` waits |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
