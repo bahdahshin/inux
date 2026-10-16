@@ -80,6 +80,7 @@ pub mod rbtree;
 pub mod refcount;
 pub mod sched_eevdf;
 pub mod sched_fair;
+pub mod sched_rt_prio;
 pub mod seq_buf;
 pub mod sha1;
 pub mod sha256;
