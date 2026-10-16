@@ -136,7 +136,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 99 | `lib/test_ida.c` (the parts that fit a fixed bitmap): the straightforward alloc checks, leaf fill-and-free, exceptional-entry conversion, bad frees, and the existence checks; `ida_check_max()` (ids near 2^31), `ida_destroy()`, `ida_is_empty()` and the tree-based `find_first_range()` wait for an IDA that grows | partial |
 | 100 | `lib/test_memcat_p.c`: the KUnit-style check of `memcat_p()` ported in full: 127-element arrays, the total, the magic, the length, and the order; the arrays are slices, so no NULL terminator | done |
 | 101 | `lib/test_bitops.c`: the `get_count_order()` and `get_count_order_long()` tables and the set/clear round trip checked with `find_first_bit`; the `fns()` timing loop is a benchmark and is not ported | done |
-| 102+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 102 | `lib/is_single_threaded.c`: `current_is_single_threaded()` over a slice of task records in list order, with the thread-group walk, the mm-sharing check and the kernel-thread skip; the RCU walk and `task_struct` are modelled by the caller | partial |
+| 103+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
