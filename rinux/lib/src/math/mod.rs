@@ -13,6 +13,7 @@ mod int_log;
 mod int_pow;
 mod int_sqrt;
 mod lcm;
+mod polynomial;
 mod rational;
 mod reciprocal_div;
 
@@ -23,6 +24,7 @@ pub use int_log::{intlog2, intlog10};
 pub use int_pow::int_pow;
 pub use int_sqrt::{int_sqrt, int_sqrt64};
 pub use lcm::{lcm, lcm_not_zero};
+pub use polynomial::{Polynomial, PolynomialTerm, polynomial_calc};
 pub use rational::rational_best_approximation;
 pub use reciprocal_div::{
     ReciprocalValue, ReciprocalValueAdv, reciprocal_divide, reciprocal_value, reciprocal_value_adv,

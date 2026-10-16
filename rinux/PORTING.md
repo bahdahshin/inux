@@ -64,7 +64,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 25 | `lib/errseq.c`: error sequence numbers (`errseq_set()`, `errseq_sample()`, `errseq_check()`, `errseq_check_and_advance()`) over an `AtomicU32`, with host tests for the sample/set/check protocol; Linux has no KUnit file for it | done |
 | 26 | `lib/argv_split.c`: whitespace word splitting as an allocation-free iterator of index ranges over the caller's bytes (`argv_split()`, `count_argc()`), with host tests; `argv_free()` and the `kmalloc`ed array are left to the caller | done |
 | 27 | `lib/errname.c`: `errname()` (the symbolic name of an errno, with the sign kept), built on the crate's errno table instead of a second name table; host tests walk every entry | done |
-| 28+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 28 | `lib/math/polynomial.c`: integer polynomial evaluation with factor redistribution (`polynomial_calc()`), with the temperature conversion from the C comment checked against the real formula; a tolerance covers the truncation at each power | done |
+| 29+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -211,6 +212,8 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/int_log.h` | `lib/src/math/int_log.rs` | done | |
 | `lib/math/reciprocal_div.c` | `lib/src/math/reciprocal_div.rs` | done | |
 | `include/linux/reciprocal_div.h` | `lib/src/math/reciprocal_div.rs` | done | |
+| `lib/math/polynomial.c` | `lib/src/math/polynomial.rs` | done | `polynomial_calc()` over slices of `PolynomialTerm`; the wrapping arithmetic matches the kernel's x86-64 build |
+| `include/linux/polynomial.h` | `lib/src/math/polynomial.rs` | done | `struct polynomial` and `struct polynomial_term` as `Polynomial` and `PolynomialTerm` |
 | `lib/math/rational.c` | `lib/src/math/rational.rs` | done | |
 | `include/linux/rational.h` | `lib/src/math/rational.rs` | done | |
 | `lib/math/div64.c` | `lib/src/math/div64.rs` | done | generic `mul_u64_add_u64_div_u64()` with both digit sizes |
