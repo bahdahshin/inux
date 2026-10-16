@@ -81,6 +81,7 @@ pub mod random32;
 pub mod ratelimit;
 pub mod rbtree;
 pub mod refcount;
+pub mod sched_dl_cbs;
 pub mod sched_eevdf;
 pub mod sched_fair;
 pub mod sched_pelt;

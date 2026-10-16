@@ -121,7 +121,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 83 | `kernel/sched/loadavg.c` and `include/linux/sched/loadavg.h`: the load-average fixed-point decay, the power and the avenrun update, with tests against the real exponential, convergence, clamping and the fraction format | partial |
 | 84 | `kernel/sched/cputime.c` (`cputime_adjust`): the monotonic split of runtime into user and system time, with tests that the parts sum to the total, follow the tick ratio, never go backwards over 500 samples, and ignore a non-monotonic total | partial |
 | 85 | `kernel/sched/cpudeadline.c`: the per-CPU max-heap of deadlines, set, clear, root and find, checked against a brute-force maximum over 2000 random updates | partial |
-| 86+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 86 | `kernel/sched/deadline.c` (CBS rules): budget replenishment by whole periods, the new-period reset, and the bandwidth overflow test, with tests for fresh, overrun, lagging and over- and under-bandwidth cases | partial |
+| 87+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -489,6 +490,8 @@ or `test` (a C test file ported to Rust tests).
 | `kernel/sched/core.c` | `kernel/src/kernel/sched/core.rs` | partial | runqueue, __schedule/context_switch/finish_task_switch, schedule(), wake_up_new_task, sched_tick, do_exit, kernel_thread, cpu idle loop, sched_init; round-robin only, one CPU, no CFS/EEVDF, load balancing or mm switch |
 | `kernel/sched/sched.h` (`rt_prio_array`) | `lib/src/sched_rt_prio.rs` | partial | the RT priority array: one FIFO per priority over entity ids, a bitmap with the delimiter bit, enqueue, dequeue and the highest-priority pick; the rt_rq and bandwidth logic wait |
 | `kernel/sched/cputime.c` (`cputime_adjust`) | `lib/src/cputime.rs` | partial | the monotonic split of precise runtime into user and system time, with the sample and previous state explicit; the per-task lock and the tick accounting wait for the scheduler |
+| `kernel/sched/deadline.c` (CBS rules) | `lib/src/sched_dl_cbs.rs` | partial | `replenish_dl_new_period()`, `replenish_dl_entity()` and `dl_entity_overflow()` over explicit parameters; the deferred-server, yield and tracing paths and the rq clock wait for the scheduler |
+| `kernel/sched/sched.h` (`DL_SCALE`) | `lib/src/sched_dl_cbs.rs` | done | the overflow scale |
 | `kernel/sched/cpudeadline.c` | `lib/src/cpudl.rs` | partial | `cpudl_set()`, `cpudl_clear()`, `cpudl_maximum()` and the heapify functions over CPU ids, with `find()` without a mask; the cpumask search with capacity fitting and the lock wait |
 | `kernel/sched/loadavg.c` | `lib/src/loadavg.rs` | partial | `calc_load()`, `fixed_power_int()`, `calc_load_n()`, the `avenrun[]` update and `LOAD_INT`/`LOAD_FRAC`; the NO_HZ folding and the per-CPU active counts wait for the scheduler |
 | `include/linux/sched/loadavg.h` | `lib/src/loadavg.rs` | done | `FSHIFT`, `FIXED_1`, `EXP_1`, `EXP_5`, `EXP_15` and the load macros |
