@@ -54,6 +54,7 @@ pub mod errno;
 pub mod errseq;
 pub mod extable;
 pub mod find_bit;
+pub mod fw_table;
 pub mod genalloc;
 pub mod glob;
 pub mod hash;
