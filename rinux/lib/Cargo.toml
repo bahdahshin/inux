@@ -1,0 +1,14 @@
+[package]
+name = "rinux-lib"
+description = "Rust port of the Linux kernel's lib/ directory"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "rinux_lib"
+
+[lints]
+workspace = true

@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: GPL-2.0
+//! rinux-lib: the Linux kernel's `lib/` directory, ported to Rust.
+//!
+//! Each module names the C files it was ported from. The crate is `no_std`
+//! and allocation-free so the kernel can use it from the first instruction.
+//!
+//! Conventions shared by the modules:
+//!
+//! - C strings are byte slices that end at the first NUL or at the end of
+//!   the slice; see [`string`].
+//! - Functions that return `-Exxx` in C return [`errno::Result`].
+//! - Functions that return a pointer into a buffer in C return an index.
+//! - C `unsigned long` is `u64`; rinux targets 64-bit machines.
+
+#![no_std]
+
+pub mod bug;
+
+pub mod base64;
+pub mod bcd;
+pub mod bitmap;
+pub mod bitops;
+pub mod bitrev;
+pub mod bsearch;
+pub mod cmdline;
+pub mod crc;
+pub mod ctype;
+pub mod errno;
+pub mod find_bit;
+pub mod genalloc;
+pub mod glob;
+pub mod hash;
+pub mod hexdump;
+pub mod hweight;
+pub mod kfifo;
+pub mod kstrtox;
+pub mod list;
+pub mod llist;
+pub mod math;
+pub mod md5;
+pub mod mktime;
+pub mod parser;
+pub mod plist;
+pub mod random32;
+pub mod ratelimit;
+pub mod rbtree;
+pub mod refcount;
+pub mod sha1;
+pub mod sha256;
+pub mod siphash;
+pub mod sort;
+pub mod string;
+pub mod timerqueue;
+pub mod ts_bm;
+pub mod ts_kmp;
+pub mod uuid;
+pub mod vsprintf;
+pub mod win_minmax;
+pub mod xxhash;
