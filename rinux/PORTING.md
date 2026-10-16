@@ -108,7 +108,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 70 | `lib/strncpy_from_user.c`: copy a string from user memory bounded by a count, over a reader that reports faults, with tests for the NUL, count, empty and fault cases | partial |
 | 71 | `lib/strnlen_user.c`: the bounded user-string length with its three return values, with tests for length, too-long and fault cases | partial |
 | 72 | `lib/usercopy.c`: `check_zeroed_user()` with the early exit and the fault result, with tests; the copy wrappers wait for the user-access layer | partial |
-| 73+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 73 | `lib/stmp_device.c` and `include/linux/stmp_device.h`: the i.MX/STMP block reset sequence over a register trait, with a simulated block that gates its clock on soft reset, and a stuck-reset timeout test | done |
+| 74+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
