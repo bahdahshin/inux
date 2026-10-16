@@ -154,7 +154,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 117 | `lib/src/uaccess.rs`: the `UserMemory` trait (`copy_from_user()` and `copy_to_user()` returning the bytes not copied), `FlatUser` as a flat user address space, and the byte-wise `strncpy_from_user_mem()`, `strnlen_user_mem()` and `check_zeroed_user_mem()`; `kstrto*_from_user()` for the 64- and 32-bit integers and the boolean; the kernel implements `UserMemory` over the task's address space with the fault fixup | done |
 | 118 | `lib/kstrtox.c`: the 16- and 8-bit `kstrtou16_from_user()`, `kstrtos16_from_user()`, `kstrtou8_from_user()` and `kstrtos8_from_user()`, with the copy sized as in C and tests for the range and fault rules | done |
 | 119 | `lib/bitmap-str.c`: `bitmap_parse_user()` and `bitmap_parselist_user()` over `UserMemory`, with the `memdup_user_nul()` copy in `alloc_helpers` behind the `alloc` feature; host tests cover the hex and list formats, the copy and fault rules, and a bad string | done |
-| 120+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 120 | `lib/src/random.rs`: the `RandomSource` trait with `get_random_u32()`, `get_random_bytes()` and `get_random_u32_below()` as in C (the multiply, the high word, and the rejection threshold), implemented for the seeded `RndState`; `find_random_bit()` and the random UUID and GUID generators draw from it | done |
+| 121+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -368,7 +369,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/bitmap.h` | `lib/src/bitmap.rs` | partial | as `lib/bitmap.c`; compile-time fast paths not needed |
 | `lib/bitmap-str.c` | `lib/src/bitmap_str.rs` | partial | `bitmap_parse_user()` and `bitmap_parselist_user()` are in `alloc_helpers` behind the `alloc` feature; the printing `*_user()` side is not ported |
 | `include/linux/bitmap-str.h` | `lib/src/bitmap.rs` | partial | as `lib/bitmap-str.c` |
-| `lib/find_bit.c` | `lib/src/find_bit.rs` | partial | `find_random_bit()` waits for the RNG |
+| `lib/find_bit.c` | `lib/src/find_bit.rs` | done | `find_random_bit()` over a `RandomSource`; the rest of the file is ported above |
 | `include/linux/find.h` | `lib/src/find_bit.rs` | done | `for_each_*` loops are iterators |
 | `lib/genalloc.c` | `lib/src/genalloc.rs` | partial | `gen_pool_alloc`/`free`/`avail` as a single-chunk first-fit bitmap pool over a caller-supplied bitmap; no chunk list, locking or NUMA ownership |
 | `include/linux/genalloc.h` | `lib/src/genalloc.rs` | partial | the pool's unit order and bitmap |
@@ -403,7 +404,7 @@ or `test` (a C test file ported to Rust tests).
 | `lib/kfifo.c` | `lib/src/kfifo.rs` | partial | the byte FIFO core (`__kfifo_in`/`__kfifo_out`, copy-in/out with wraparound) as a fixed-capacity `Kfifo<N>`; no `kfifo_alloc`, record variants or DMA/scatterlist helpers |
 | `include/linux/kfifo.h` | `lib/src/kfifo.rs` | partial | the byte `Kfifo` API (put/get/peek/len/reset); the typed macro wrappers are replaced by const generics |
 | kfifo tests | `lib/tests/kfifo_kunit.rs` | test | put/get, fill-and-reject, buffer wraparound, non-consuming peek, and a long streaming run |
-| `lib/uuid.c` | `lib/src/uuid.rs` | partial | generators take the random source as a closure until the RNG is ported |
+| `lib/uuid.c` | `lib/src/uuid.rs` | done | the random generators draw from a `RandomSource` (`generate_random_uuid_from()`, `generate_random_guid_from()`); the closure forms stay for callers that have one |
 | `include/linux/uuid.h` | `lib/src/uuid.rs` | done | |
 | `lib/base64.c` | `lib/src/base64.rs` | done | |
 | `include/linux/base64.h` | `lib/src/base64.rs` | done | |
