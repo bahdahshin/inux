@@ -11,6 +11,7 @@
 //! `kasprintf_strarray()` and the other allocating helpers, the
 //! `match_string()` family, and `memcpy_and_pad()`'s fortify hooks.
 
+use crate::errno::{EINVAL, Result};
 use crate::hexdump::hex_to_bin;
 
 /// `STRING_UNITS_10`: powers of 1000 (SI).
@@ -484,4 +485,87 @@ pub fn string_escape_mem(src: &[u8], dst: &mut [u8], flags: u32, only: &[u8]) ->
     }
 
     out.pos
+}
+
+/// `strim()`: the view of `s` without leading and trailing white space,
+/// as a C string: the slice ends at its first NUL. The C version writes the
+/// terminator in place; this returns the trimmed view instead, which leaves
+/// `s` unchanged.
+pub fn strim(s: &[u8]) -> &[u8] {
+    let len = s.iter().position(|&c| c == 0).unwrap_or(s.len());
+    let s = &s[..len];
+    let start = s.iter().position(|&c| !is_space(c)).unwrap_or(s.len());
+    let end = s
+        .iter()
+        .rposition(|&c| !is_space(c))
+        .map_or(start, |e| e + 1);
+    &s[start..end.max(start)]
+}
+
+/// `isspace()`: space, tab, newline, vertical tab, form feed, carriage return.
+fn is_space(c: u8) -> bool {
+    matches!(c, b' ' | b'\t' | b'\n' | 0x0b | 0x0c | b'\r')
+}
+
+/// `sysfs_streq()`: equal as sysfs writes compare, where a trailing newline
+/// on either side is ignored.
+pub fn sysfs_streq(s1: &[u8], s2: &[u8]) -> bool {
+    let mut i = 0;
+    while byte(s1, i) != 0 && byte(s1, i) == byte(s2, i) {
+        i += 1;
+    }
+    let (a, b) = (byte(s1, i), byte(s2, i));
+    if a == b {
+        return true;
+    }
+    if a == 0 && b == b'\n' && byte(s2, i + 1) == 0 {
+        return true;
+    }
+    a == b'\n' && byte(s1, i + 1) == 0 && b == 0
+}
+
+/// `match_string()`: the index of `string` in `array`, which ends at its
+/// first `None` entry, or `EINVAL` when it is absent. Only the first `n`
+/// entries are searched.
+pub fn match_string(array: &[Option<&[u8]>], n: usize, string: &[u8]) -> Result<usize> {
+    for (index, item) in array.iter().take(n).enumerate() {
+        match item {
+            None => break,
+            Some(item) if strcmp_eq(item, string) => return Ok(index),
+            Some(_) => {}
+        }
+    }
+    Err(EINVAL)
+}
+
+/// `__sysfs_match_string()`: [`match_string`] with [`sysfs_streq`] as the
+/// comparison.
+pub fn sysfs_match_string(array: &[Option<&[u8]>], n: usize, string: &[u8]) -> Result<usize> {
+    for (index, item) in array.iter().take(n).enumerate() {
+        match item {
+            None => break,
+            Some(item) if sysfs_streq(item, string) => return Ok(index),
+            Some(_) => {}
+        }
+    }
+    Err(EINVAL)
+}
+
+/// `strcmp() == 0` on two C strings.
+fn strcmp_eq(a: &[u8], b: &[u8]) -> bool {
+    let a = &a[..a.iter().position(|&c| c == 0).unwrap_or(a.len())];
+    let b = &b[..b.iter().position(|&c| c == 0).unwrap_or(b.len())];
+    a == b
+}
+
+/// `strreplace()`: replace every `old` byte with `new` up to the first NUL.
+pub fn strreplace(s: &mut [u8], old: u8, new: u8) {
+    for c in s.iter_mut() {
+        if *c == 0 {
+            break;
+        }
+        if *c == old {
+            *c = new;
+        }
+    }
 }

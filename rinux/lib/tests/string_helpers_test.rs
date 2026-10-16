@@ -154,3 +154,48 @@ fn escape_then_unescape_round_trips() {
     let m = string_unescape(&escaped[..n], &mut back, UNESCAPE_ANY);
     assert_eq!(&back[..m], src);
 }
+
+mod lookup {
+    use rinux_lib::errno::EINVAL;
+    use rinux_lib::string_helpers::{
+        match_string, strim, strreplace, sysfs_match_string, sysfs_streq,
+    };
+
+    #[test]
+    fn strim_drops_white_space_at_both_ends() {
+        assert_eq!(strim(b"  a b \t\n"), b"a b");
+        assert_eq!(strim(b"   "), b"");
+        assert_eq!(strim(b""), b"");
+        assert_eq!(strim(b"x\0  "), b"x");
+    }
+
+    #[test]
+    fn sysfs_streq_ignores_one_trailing_newline() {
+        assert!(sysfs_streq(b"on", b"on"));
+        assert!(sysfs_streq(b"on", b"on\n"));
+        assert!(sysfs_streq(b"on\n", b"on"));
+        assert!(!sysfs_streq(b"on", b"off"));
+        assert!(!sysfs_streq(b"on\n\n", b"on"));
+    }
+
+    #[test]
+    fn match_string_finds_the_index_and_stops_at_none() {
+        let table = [Some(&b"red"[..]), Some(b"green"), None, Some(b"blue")];
+        assert_eq!(match_string(&table, 4, b"green"), Ok(1));
+        assert_eq!(match_string(&table, 4, b"blue"), Err(EINVAL));
+        assert_eq!(match_string(&table, 1, b"green"), Err(EINVAL));
+    }
+
+    #[test]
+    fn sysfs_match_string_uses_sysfs_equality() {
+        let table = [Some(&b"off"[..]), Some(b"on")];
+        assert_eq!(sysfs_match_string(&table, 2, b"on\n"), Ok(1));
+    }
+
+    #[test]
+    fn strreplace_stops_at_the_nul() {
+        let mut s = *b"a-b-c\0-x";
+        strreplace(&mut s, b'-', b'_');
+        assert_eq!(&s, b"a_b_c\0-x");
+    }
+}
