@@ -51,6 +51,7 @@ pub mod md5;
 pub mod memcat_p;
 pub mod memweight;
 pub mod mktime;
+pub mod muldi3;
 pub mod net_utils;
 pub mod oid_registry;
 pub mod oid_registry_data;

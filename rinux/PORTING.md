@@ -73,7 +73,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 34 | `lib/net_utils.c` and `lib/clz_tab.c`: MAC address parsing, and the byte bit-length table, each with host tests | done |
 | 35 | `lib/memcat_p.c`: concatenate two pointer arrays into a caller buffer, with host tests | done |
 | 36 | `lib/bust_spinlocks.c`: the nested oops counter, with the console and klogd hooks passed in, and a host test | done |
-| 37+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 37 | `lib/muldi3.c`: the 64-bit multiply from 32-bit halves, with host tests against the native operators | done |
+| 38+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -590,6 +591,7 @@ or `test` (a C test file ported to Rust tests).
 | `lib/memcat_p.c` | `lib/src/memcat_p.rs` | done | `memcat_p()` over slices into a caller buffer; the NULL terminators become slice ends |
 | `include/linux/string.h` (`memcat_p`) | `lib/src/memcat_p.rs` | done | the macro is the function |
 | `lib/bust_spinlocks.c` | `lib/src/bust_spinlocks.rs` | done | the oops counter; the console unblank and klogd wake are passed in as closures until those subsystems exist |
+| `lib/muldi3.c` | `lib/src/muldi3.rs` | done | `umul_ppmm()`, `umulsidi3()` and `muldi3()` as the same 16-bit-piece algorithm; the cross-term sum wraps as the C does |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
