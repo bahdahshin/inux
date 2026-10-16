@@ -101,6 +101,7 @@ pub mod string;
 pub mod string_helpers;
 pub mod strncpy_from_user;
 pub mod strnlen_user;
+pub mod textsearch;
 pub mod timerqueue;
 pub mod ts_bm;
 pub mod ts_fsm;
