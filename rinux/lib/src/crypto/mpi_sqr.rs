@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-//! Schoolbook squaring of a limb slice: `prod = up * up`.
+//! Schoolbook multiplication of limb slices, and squaring as its special case.
 //!
 //! Ported from `mpih_sqr_n_basecase()` in `lib/crypto/mpi/mpih-mul.c`. The
 //! C routine multiplies by each limb of `up` in turn, storing the first row
@@ -14,14 +14,23 @@ use crate::crypto::mpi_mul::{mpihelp_addmul_1, mpihelp_mul_1};
 ///
 /// Panics if the slice lengths are wrong.
 pub fn mpih_sqr_n_basecase(prod: &mut [u64], up: &[u64], size: usize) {
-    assert_eq!(up.len(), size, "squaring operand length");
-    assert_eq!(prod.len(), 2 * size, "squaring product length");
+    mul_n_basecase(prod, up, up, size);
+}
+
+/// `mul_n_basecase()`: `prod = up * vp` for two `size`-limb operands, the
+/// schoolbook product that `mpih_sqr_n_basecase()` specialises to `up * up`.
+///
+/// Panics if the slice lengths are wrong.
+pub fn mul_n_basecase(prod: &mut [u64], up: &[u64], vp: &[u64], size: usize) {
+    assert_eq!(up.len(), size, "multiplicand length");
+    assert_eq!(vp.len(), size, "multiplier length");
+    assert_eq!(prod.len(), 2 * size, "product length");
     if size == 0 {
         return;
     }
 
     // Multiply by the first limb of U; the result is stored, not added.
-    let v0 = up[0];
+    let v0 = vp[0];
     let cy = if v0 <= 1 {
         if v0 == 1 {
             prod[..size].copy_from_slice(up);
@@ -36,7 +45,7 @@ pub fn mpih_sqr_n_basecase(prod: &mut [u64], up: &[u64], size: usize) {
 
     // Each later row multiplies U by one limb and adds it in at row `i`.
     for i in 1..size {
-        let v = up[i];
+        let v = vp[i];
         let cy = if v <= 1 {
             if v == 1 {
                 add_in_place(&mut prod[i..i + size], up)
