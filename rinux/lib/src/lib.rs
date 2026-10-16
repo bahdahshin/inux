@@ -26,6 +26,7 @@ pub mod cmdline;
 pub mod crc;
 pub mod ctype;
 pub mod errno;
+pub mod errseq;
 pub mod find_bit;
 pub mod genalloc;
 pub mod glob;
