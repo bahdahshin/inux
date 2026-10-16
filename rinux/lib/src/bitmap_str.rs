@@ -286,3 +286,138 @@ pub fn bitmap_parse(buf: &[u8], buflen: usize, mask: &mut [u64], nmaskbits: usiz
     }
     Ok(())
 }
+
+/// A window onto the output stream: bytes at `off..off + count` of the
+/// stream are copied into `buf`, the rest is only counted. This is
+/// `memory_read_from_buffer()` applied to the formatted string.
+struct Window<'a> {
+    buf: &'a mut [u8],
+    pos: usize,
+    off: usize,
+    count: usize,
+    written: usize,
+}
+
+impl Window<'_> {
+    fn put(&mut self, b: u8) {
+        if self.pos >= self.off && self.written < self.count {
+            self.buf[self.written] = b;
+            self.written += 1;
+        }
+        self.pos += 1;
+    }
+
+    fn put_decimal(&mut self, mut n: usize) {
+        let mut digits = [0u8; 20];
+        let mut len = 0;
+        loop {
+            digits[len] = b'0' + (n % 10) as u8;
+            len += 1;
+            n /= 10;
+            if n == 0 {
+                break;
+            }
+        }
+        for &d in digits[..len].iter().rev() {
+            self.put(d);
+        }
+    }
+}
+
+/// Bit `i` of a bitmap, or 0 past its end.
+fn bit(mask: &[u64], i: usize) -> bool {
+    (mask[i / 64] >> (i % 64)) & 1 == 1
+}
+
+/// `bitmap_print_to_buf()`: the hex mask (`%*pb`) or the list (`%*pbl`),
+/// followed by a newline and a NUL, as the C `kasprintf()` leaves it. Copies
+/// the bytes from `off` into `buf`, up to `count`, and returns how many.
+fn print_to_buf(
+    list: bool,
+    buf: &mut [u8],
+    mask: &[u64],
+    nbits: usize,
+    off: usize,
+    count: usize,
+) -> usize {
+    let count = count.min(buf.len());
+    let mut w = Window {
+        buf,
+        pos: 0,
+        off,
+        count,
+        written: 0,
+    };
+
+    if list {
+        let mut first = true;
+        let mut i = 0;
+        while i < nbits {
+            if !bit(mask, i) {
+                i += 1;
+                continue;
+            }
+            let start = i;
+            let mut end = i;
+            while end + 1 < nbits && bit(mask, end + 1) {
+                end += 1;
+            }
+            if !first {
+                w.put(b',');
+            }
+            first = false;
+            w.put_decimal(start);
+            if end > start {
+                w.put(b'-');
+                w.put_decimal(end);
+            }
+            i = end + 1;
+        }
+    } else {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
+        let chunks = nbits.div_ceil(32);
+        for idx in (0..chunks).rev() {
+            if idx != chunks - 1 {
+                w.put(b',');
+            }
+            // Bits of this 32-bit group that lie inside the bitmap.
+            let valid = (nbits - idx * 32).min(32);
+            let mut value = (mask[idx / 2] >> ((idx % 2) * 32)) as u32;
+            if valid < 32 {
+                value &= (1u32 << valid) - 1;
+            }
+            for nibble in (0..8).rev() {
+                w.put(HEX[((value >> (nibble * 4)) & 0xf) as usize]);
+            }
+        }
+    }
+
+    w.put(b'\n');
+    w.put(0);
+    w.written
+}
+
+/// `bitmap_print_bitmask_to_buf()`: the bitmap as comma-separated 8-digit
+/// hex groups, most significant group first, copied from byte `off` into
+/// `buf` up to `count` bytes. Returns the number of bytes copied.
+pub fn bitmap_print_bitmask_to_buf(
+    buf: &mut [u8],
+    mask: &[u64],
+    nbits: usize,
+    off: usize,
+    count: usize,
+) -> usize {
+    print_to_buf(false, buf, mask, nbits, off, count)
+}
+
+/// `bitmap_print_list_to_buf()`: the set bits as a decimal list such as
+/// `0-2,5,7-8`, with the same window as [`bitmap_print_bitmask_to_buf`].
+pub fn bitmap_print_list_to_buf(
+    buf: &mut [u8],
+    mask: &[u64],
+    nbits: usize,
+    off: usize,
+    count: usize,
+) -> usize {
+    print_to_buf(true, buf, mask, nbits, off, count)
+}

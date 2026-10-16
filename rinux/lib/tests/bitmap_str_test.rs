@@ -154,3 +154,61 @@ mod hex {
         assert_eq!(mask[0] & 0xff, 0xff);
     }
 }
+
+mod print {
+    use rinux_lib::bitmap_str::{bitmap_print_bitmask_to_buf, bitmap_print_list_to_buf};
+
+    /// Print with a large window and return the bytes written.
+    fn hex(mask: &[u64], nbits: usize) -> Vec<u8> {
+        let mut buf = vec![0u8; 256];
+        let n = bitmap_print_bitmask_to_buf(&mut buf, mask, nbits, 0, 256);
+        buf.truncate(n);
+        buf
+    }
+
+    fn list(mask: &[u64], nbits: usize) -> Vec<u8> {
+        let mut buf = vec![0u8; 256];
+        let n = bitmap_print_list_to_buf(&mut buf, mask, nbits, 0, 256);
+        buf.truncate(n);
+        buf
+    }
+
+    #[test]
+    fn hex_groups_are_eight_digits_with_a_newline_and_nul() {
+        assert_eq!(hex(&[0xff], 8), b"000000ff\n\0");
+    }
+
+    #[test]
+    fn hex_groups_are_split_every_32_bits() {
+        // 40 bits: a full group, then 8 bits of the next.
+        assert_eq!(hex(&[0xff_ffff_ffff], 40), b"000000ff,ffffffff\n\0");
+    }
+
+    #[test]
+    fn list_joins_runs_with_a_dash() {
+        let mask = [0b1_1010_0111u64];
+        assert_eq!(list(&mask, 16), b"0-2,5,7-8\n\0");
+    }
+
+    #[test]
+    fn an_empty_bitmap_prints_nothing_but_the_terminator() {
+        assert_eq!(list(&[0], 8), b"\n\0");
+        assert_eq!(hex(&[0], 0), b"\n\0");
+    }
+
+    #[test]
+    fn the_window_starts_at_off_and_stops_at_count() {
+        let mask = [0b101u64];
+        let mut buf = [0u8; 2];
+        // The stream is "0,2\n\0"; bytes 2..4 are "2\n".
+        let n = bitmap_print_list_to_buf(&mut buf, &mask, 8, 2, 2);
+        assert_eq!(n, 2);
+        assert_eq!(&buf, b"2\n");
+    }
+
+    #[test]
+    fn an_offset_past_the_end_copies_nothing() {
+        let mut buf = [0u8; 4];
+        assert_eq!(bitmap_print_list_to_buf(&mut buf, &[1], 8, 100, 4), 0);
+    }
+}
