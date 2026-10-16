@@ -54,6 +54,7 @@ pub mod random32;
 pub mod ratelimit;
 pub mod rbtree;
 pub mod refcount;
+pub mod seq_buf;
 pub mod sha1;
 pub mod sha256;
 pub mod siphash;
