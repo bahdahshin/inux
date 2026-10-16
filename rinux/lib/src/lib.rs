@@ -41,6 +41,8 @@ pub mod math;
 pub mod md5;
 pub mod memweight;
 pub mod mktime;
+pub mod oid_registry;
+pub mod oid_registry_data;
 pub mod packing;
 pub mod parser;
 pub mod plist;
