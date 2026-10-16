@@ -159,7 +159,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 122 | `lib/src/printk.rs` and `lib/src/ratelimit.rs`: the ratelimit "N callbacks suppressed" line through the sink, at `LOGLEVEL_WARNING` when a window that suppressed events ends, and `seq_buf_do_printk()` as a sink call per line; host tests cover the report timing, the empty case and the line split | done |
 | 123 | `lib/string_helpers.c`: `parse_int_array()` over `get_options()`, returning the count and the integers as C's array does, behind the `alloc` feature; host tests cover the comma list, a negative value and the no-integer `ENOENT` case. The row for this file was stale: `string_get_size()` and the rest were already ported | done |
 | 124 | `lib/string_helpers.c`: `kstrdup_quotable()` over `string_escape_mem()` with `ESCAPE_HEX` and C's escape set, behind `alloc`; the escaped bytes are sized in a first pass, as `kasprintf()` does; host tests cover plain text, the hex-escaped set, bytes outside the set, the NUL end and the missing source | done |
-| 125+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 125 | `lib/genalloc.c`: `gen_pool_has_addr()` on a single-chunk pool, with the inclusive last-byte check; host tests cover ranges inside, leaving either end, and empty ranges and pools | done |
+| 126+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -375,7 +376,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/bitmap-str.h` | `lib/src/bitmap.rs` | partial | as `lib/bitmap-str.c` |
 | `lib/find_bit.c` | `lib/src/find_bit.rs` | done | `find_random_bit()` over a `RandomSource`; the rest of the file is ported above |
 | `include/linux/find.h` | `lib/src/find_bit.rs` | done | `for_each_*` loops are iterators |
-| `lib/genalloc.c` | `lib/src/genalloc.rs` | partial | `gen_pool_alloc`/`free`/`avail` as a single-chunk first-fit bitmap pool over a caller-supplied bitmap; no chunk list, locking or NUMA ownership |
+| `lib/genalloc.c` | `lib/src/genalloc.rs` | partial | `gen_pool_alloc`/`free`/`avail`/`size`/`has_addr` as a single-chunk first-fit bitmap pool over a caller-supplied bitmap; no chunk list, custom allocation algorithms, locking, phys mapping or NUMA ownership |
 | `include/linux/genalloc.h` | `lib/src/genalloc.rs` | partial | the pool's unit order and bitmap |
 | genalloc tests | `lib/tests/genalloc_kunit.rs` | test | alloc/free/reuse, exhaustion, and a no-overlap check |
 | `include/linux/bitops.h` | `lib/src/bitops.rs` | partial | atomic bitops, `set_mask_bits()` and `bit_clear_unless()` wait for SMP; `__ptr_*_bit()` not needed |

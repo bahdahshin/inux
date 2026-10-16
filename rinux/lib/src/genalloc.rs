@@ -90,6 +90,18 @@ impl<'a> GenPool<'a> {
         self.avail_units << self.order
     }
 
+    /// `gen_pool_has_addr()`: whether `[start, start + size)` lies inside the
+    /// pool. C checks the start against the chunk and the end against the
+    /// chunk's last byte; a pool with no bytes has no addresses.
+    pub fn has_addr(&self, start: u64, size: usize) -> bool {
+        if self.nunits == 0 || size == 0 {
+            return false;
+        }
+        let chunk_end = self.start_addr + self.size() as u64 - 1;
+        let end = start.wrapping_add(size as u64 - 1);
+        start >= self.start_addr && start <= chunk_end && end <= chunk_end
+    }
+
     /// `gen_pool_size()`: the total number of bytes the pool manages.
     pub fn size(&self) -> usize {
         self.nunits << self.order
