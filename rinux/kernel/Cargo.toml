@@ -1,0 +1,31 @@
+[package]
+name = "rinux-kernel"
+description = "The rinux kernel image"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-2.0-only"
+repository = "https://github.com/bahdahshin/linux"
+rust-version = "1.85"
+
+[[bin]]
+name = "rinux"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+rinux-lib = { path = "../lib" }
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+
+# The kernel is built for x86_64-unknown-none, which the host workspace in
+# ../Cargo.toml can't link, so it is a workspace of its own.
+[workspace]
