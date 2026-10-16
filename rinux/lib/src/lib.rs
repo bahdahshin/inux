@@ -34,6 +34,7 @@ pub mod hexdump;
 pub mod hweight;
 pub mod kfifo;
 pub mod kstrtox;
+pub mod linear_ranges;
 pub mod list;
 pub mod llist;
 pub mod math;
