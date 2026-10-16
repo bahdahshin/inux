@@ -125,7 +125,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 87 | `kernel/sched/sched.h` (uclamp buckets): the clamp-value to bucket mapping with its rounded width, tests for the edges, the top bucket and monotonicity | done |
 | 88 | `include/linux/sched/prio.h` and `kernel/sched/syscalls.c` (`__normal_prio`): the priority ranges, nice conversions and the normal priority from policy, with tests for ranges, nice, real-time and deadline ordering | done |
 | 89 | `kernel/sched/completion.c` (non-blocking part): counting completions, complete_all staying in force, and try-wait, with tests including concurrent completers; blocking waits wait for the scheduler | partial |
-| 90+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 90 | `kernel/sched/cpupri.c` (level mapping) and `kernel/sched/cpupri.h`: the task priority to CPU level conversion, with tests for the special levels, the real-time reversal and monotonicity | partial |
+| 91+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -495,6 +496,8 @@ or `test` (a C test file ported to Rust tests).
 | `kernel/sched/cputime.c` (`cputime_adjust`) | `lib/src/cputime.rs` | partial | the monotonic split of precise runtime into user and system time, with the sample and previous state explicit; the per-task lock and the tick accounting wait for the scheduler |
 | `kernel/sched/deadline.c` (CBS rules) | `lib/src/sched_dl_cbs.rs` | partial | `replenish_dl_new_period()`, `replenish_dl_entity()` and `dl_entity_overflow()` over explicit parameters; the deferred-server, yield and tracing paths and the rq clock wait for the scheduler |
 | `kernel/sched/sched.h` (`DL_SCALE`) | `lib/src/sched_dl_cbs.rs` | done | the overflow scale |
+| `kernel/sched/cpupri.c` (`convert_prio`) | `lib/src/cpupri.rs` | partial | the task-priority to cpupri level mapping; the two-dimensional level bitmap and its search wait |
+| `kernel/sched/cpupri.h` | `lib/src/cpupri.rs` | done | the level constants |
 | `kernel/sched/completion.c` | `lib/src/completion.rs` | partial | `complete()`, `complete_all()`, `try_wait_for_completion()` and `completion_done()` over an atomic count with C's UINT_MAX meaning; the blocking waits wait for the scheduler |
 | `include/linux/completion.h` | `lib/src/completion.rs` | partial | the count and its states; the wait queue member waits |
 | `include/linux/sched/prio.h` | `lib/src/sched_prio.rs` | done | the nice and priority constants, the conversions, and the policy numbers used by `normal_prio()` |

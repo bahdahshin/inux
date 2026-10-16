@@ -33,6 +33,7 @@ pub mod bsearch;
 pub mod cmdline;
 pub mod cmpxchg_emu;
 pub mod completion;
+pub mod cpupri;
 pub mod crc;
 pub mod crypto;
 pub mod ctype;
