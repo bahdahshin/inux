@@ -49,6 +49,7 @@ pub mod linear_ranges;
 pub mod list;
 pub mod llist;
 pub mod lockref;
+pub mod lwq;
 pub mod math;
 pub mod md5;
 pub mod memcat_p;
