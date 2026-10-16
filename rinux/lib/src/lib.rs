@@ -45,6 +45,7 @@ pub mod hash;
 pub mod hexdump;
 pub mod hweight;
 pub mod ida;
+pub mod interval_tree;
 pub mod iommu_helper;
 pub mod kfifo;
 pub mod kstrtox;

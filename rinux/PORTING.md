@@ -104,7 +104,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 66 | `lib/cmpxchg-emu.c`: the one-byte compare-and-swap built on a 32-bit word, with tests for position, mismatch and concurrent neighbouring bytes | done |
 | 67 | `lib/bucket_locks.c`: the hashed spinlock array with its sizing rule and mask, with tests for sizing, mask selection and mutual exclusion in one bucket | done |
 | 68 | `include/linux/rbtree_augmented.h` (kernel side of augmentation): the `RbAugment` hooks, called from insertion rotations and erase exactly where C calls them; host test keeps a subtree maximum through random inserts and erases and checks it after every operation | done |
-| 69+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 69 | `lib/interval_tree.c` and `include/linux/interval_tree_generic.h`: interval trees over the augmented rbtree, checked against brute-force overlap over random inserts, removals and queries; the span iterator is not ported | partial |
+| 70+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -674,6 +675,8 @@ or `test` (a C test file ported to Rust tests).
 | `lib/earlycpio.c` | `lib/src/earlycpio.rs` | done | `find_cpio_data()` over byte offsets, parsing the newc hex fields as C does and returning name and data as slices; host tests build archives and check lookup, next offset, a missing name, bad magic and directories |
 | `lib/cmpxchg-emu.c` | `lib/src/cmpxchg_emu.rs` | done | `cmpxchg_emu_u8()` as a compare-and-swap of one byte inside an `AtomicU32` word, little-endian as the C union; host tests cover the position, mismatch, word crossing and four threads on neighbouring bytes |
 | `lib/bucket_locks.c` | `lib/src/bucket_locks.rs` | done | `bucket_locks_size()` (the sizing rule and mask) and `BucketLocks` over caller-provided spinlock flags, with `lock(hash)`; the kvmalloc and lockdep init stay with the caller |
+| `lib/interval_tree.c` | `lib/src/interval_tree.rs` | partial | insert, remove, subtree search, `iter_first()` and `iter_next()` on the augmented rbtree; the span iterator (`CONFIG_INTERVAL_TREE_SPAN_ITER`) waits; the leftmost node is found by walking rather than cached |
+| `include/linux/interval_tree_generic.h` | `lib/src/interval_tree.rs` | done | the generic algorithms and the `RB_DECLARE_CALLBACKS_MAX` callbacks for the subtree maximum |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
