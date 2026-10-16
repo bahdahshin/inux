@@ -103,7 +103,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 65 | `lib/earlycpio.c`: `find_cpio_data()` for newc archives in memory, with tests over archives built in the test (lookup, next offset, missing, bad magic, directory) | done |
 | 66 | `lib/cmpxchg-emu.c`: the one-byte compare-and-swap built on a 32-bit word, with tests for position, mismatch and concurrent neighbouring bytes | done |
 | 67 | `lib/bucket_locks.c`: the hashed spinlock array with its sizing rule and mask, with tests for sizing, mask selection and mutual exclusion in one bucket | done |
-| 68+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 68 | `include/linux/rbtree_augmented.h` (kernel side of augmentation): the `RbAugment` hooks, called from insertion rotations and erase exactly where C calls them; host test keeps a subtree maximum through random inserts and erases and checks it after every operation | done |
+| 69+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -431,9 +432,9 @@ or `test` (a C test file ported to Rust tests).
 | `include/uapi/linux/time.h` | `kernel/src/kernel/syscalls.rs` | partial | `CLOCK_REALTIME`, `CLOCK_MONOTONIC`, `struct timespec`/`timeval` layout |
 | `kernel/sched/clock.c` | `kernel/src/kernel/sched/clock.rs` | partial | `local_clock()` for one CPU with a stable clock |
 | `include/linux/list.h` | `lib/src/list.rs` | partial | intrusive list: add/del, del_init, iteration; hlist and RCU variants pending |
-| `lib/rbtree.c` | `lib/src/rbtree.rs` | partial | insert/erase/first/next with the dummy augmentation; augmented trees and rb_prev pending |
+| `lib/rbtree.c` | `lib/src/rbtree.rs` | partial | insert/erase/first/next; `insert_color_augmented()` and `erase_augmented()` take an `RbAugment`; `rb_prev` pending |
 | `include/linux/rbtree.h` | `lib/src/rbtree.rs` | partial | nodes, roots, link_node |
-| `include/linux/rbtree_augmented.h` | `lib/src/rbtree.rs` | partial | colour/parent helpers, erase core |
+| `include/linux/rbtree_augmented.h` | `lib/src/rbtree.rs` | done | colour/parent helpers; the `rb_augment_callbacks` as `RbAugment` (`propagate`, `copy`, `rotate`) called at the same points as C |
 | `lib/timerqueue.c` | `lib/src/timerqueue.rs` | partial | `timerqueue_add`/`del`/`getnext`/`iterate_next` over the rbtree with the earliest node cached; no linked variant (the caller serializes, as in the C) |
 | `include/linux/timerqueue.h` | `lib/src/timerqueue.rs` | partial | the `timerqueue_node`/`timerqueue_head` structs |
 | timerqueue tests | `lib/tests/timerqueue_kunit.rs` | test | ordering, the cached earliest, deletion advancing the cache, and a sorted cross-check |

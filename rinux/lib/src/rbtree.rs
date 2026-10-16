@@ -8,8 +8,8 @@
 //! Stein, as the kernel's is. Like `struct rb_node`, a [`RbNode`] is
 //! embedded in a larger structure and stores its parent pointer and colour
 //! packed into one word (the low bit is the colour, so nodes must be at
-//! least 2-byte aligned). The augmented-tree callbacks are not ported; the
-//! plain `insert`/`erase` use the no-op augmentation the kernel compiles
+//! least 2-byte aligned). The augmented-tree callbacks are in [`RbAugment`];
+//! the plain [`insert_color`] and [`erase`] use [`NoAugment`], as the kernel does
 //! in for `rb_insert_color()`/`rb_erase()`.
 //!
 //! These are raw-pointer operations and so `unsafe`: the caller keeps the
@@ -21,6 +21,39 @@ use core::ptr;
 
 const RB_RED: usize = 0;
 const RB_BLACK: usize = 1;
+
+/// The augmentation hooks of `struct rb_augment_callbacks`. Trees that keep
+/// data derived from their subtrees (such as an interval tree's maximum)
+/// implement these to update it on each rotation and removal.
+pub trait RbAugment {
+    /// `propagate()`: update the augmented data from `node` up to `stop`.
+    ///
+    /// # Safety
+    ///
+    /// `node` and `stop` must be nodes of the tree (or null).
+    unsafe fn propagate(&self, node: *mut RbNode, stop: *mut RbNode);
+    /// `copy()`: give `new` the augmented data of `old`, which it replaces.
+    ///
+    /// # Safety
+    ///
+    /// Both nodes must be valid nodes of the tree.
+    unsafe fn copy(&self, old: *mut RbNode, new: *mut RbNode);
+    /// `rotate()`: called after a rotation that made `new` the parent of `old`.
+    ///
+    /// # Safety
+    ///
+    /// Both nodes must be valid nodes of the tree.
+    unsafe fn rotate(&self, old: *mut RbNode, new: *mut RbNode);
+}
+
+/// The no-op augmentation, which the plain [`insert_color`] and [`erase`] use.
+pub struct NoAugment;
+
+impl RbAugment for NoAugment {
+    unsafe fn propagate(&self, _node: *mut RbNode, _stop: *mut RbNode) {}
+    unsafe fn copy(&self, _old: *mut RbNode, _new: *mut RbNode) {}
+    unsafe fn rotate(&self, _old: *mut RbNode, _new: *mut RbNode) {}
+}
 
 /// `struct rb_node`.
 #[repr(C, align(8))]
@@ -73,7 +106,12 @@ impl Default for RbRoot {
 }
 
 #[inline]
-unsafe fn rb_parent(n: *mut RbNode) -> *mut RbNode {
+/// `rb_parent()`: the parent of `n`, or null for the root.
+///
+/// # Safety
+///
+/// `n` must be a valid node.
+pub unsafe fn rb_parent(n: *mut RbNode) -> *mut RbNode {
     // SAFETY: n is a valid node.
     (unsafe { (*n).parent_color } & !3) as *mut RbNode
 }
@@ -140,13 +178,20 @@ unsafe fn change_child(old: *mut RbNode, new: *mut RbNode, parent: *mut RbNode, 
 
 /// `__rb_rotate_set_parents()`.
 #[inline]
-unsafe fn rotate_set_parents(old: *mut RbNode, new: *mut RbNode, root: *mut RbRoot, color: usize) {
+unsafe fn rotate_set_parents<A: RbAugment>(
+    old: *mut RbNode,
+    new: *mut RbNode,
+    root: *mut RbRoot,
+    color: usize,
+    aug: &A,
+) {
     // SAFETY: the caller guarantees the nodes and root are valid.
     unsafe {
         let parent = rb_parent(old);
         (*new).parent_color = (*old).parent_color;
         rb_set_parent_color(old, new, color);
         change_child(old, new, parent, root);
+        aug.rotate(old, new);
     }
 }
 
@@ -173,7 +218,22 @@ pub unsafe fn link_node(node: *mut RbNode, parent: *mut RbNode, rb_link: *mut *m
 /// # Safety
 ///
 /// `node` must have just been linked with [`link_node`] into `root`.
-pub unsafe fn insert_color(mut node: *mut RbNode, root: *mut RbRoot) {
+pub unsafe fn insert_color(node: *mut RbNode, root: *mut RbRoot) {
+    // SAFETY: forwarded to the caller's contract.
+    unsafe { insert_color_augmented(node, root, &NoAugment) }
+}
+
+/// `__rb_insert_augmented()`: as [`insert_color`], calling `aug.rotate` for each
+/// rotation so the caller can keep augmented data up to date.
+///
+/// # Safety
+///
+/// As for [`insert_color`]; `aug`'s callbacks must be valid for the tree.
+pub unsafe fn insert_color_augmented<A: RbAugment>(
+    mut node: *mut RbNode,
+    root: *mut RbRoot,
+    aug: &A,
+) {
     // SAFETY: all nodes reached from a valid tree are valid; preserved
     // throughout by the red-black invariants.
     unsafe {
@@ -209,6 +269,7 @@ pub unsafe fn insert_color(mut node: *mut RbNode, root: *mut RbRoot) {
                         rb_set_parent_color(tmp, parent, RB_BLACK);
                     }
                     rb_set_parent_color(parent, node, RB_RED);
+                    aug.rotate(parent, node);
                     parent = node;
                     tmp = (*node).rb_right;
                 }
@@ -218,7 +279,7 @@ pub unsafe fn insert_color(mut node: *mut RbNode, root: *mut RbRoot) {
                 if !tmp.is_null() {
                     rb_set_parent_color(tmp, gparent, RB_BLACK);
                 }
-                rotate_set_parents(gparent, parent, root, RB_RED);
+                rotate_set_parents(gparent, parent, root, RB_RED, aug);
                 break;
             } else {
                 tmp = (*gparent).rb_left;
@@ -241,6 +302,7 @@ pub unsafe fn insert_color(mut node: *mut RbNode, root: *mut RbRoot) {
                         rb_set_parent_color(tmp, parent, RB_BLACK);
                     }
                     rb_set_parent_color(parent, node, RB_RED);
+                    aug.rotate(parent, node);
                     parent = node;
                     tmp = (*node).rb_left;
                 }
@@ -250,7 +312,7 @@ pub unsafe fn insert_color(mut node: *mut RbNode, root: *mut RbRoot) {
                 if !tmp.is_null() {
                     rb_set_parent_color(tmp, gparent, RB_BLACK);
                 }
-                rotate_set_parents(gparent, parent, root, RB_RED);
+                rotate_set_parents(gparent, parent, root, RB_RED, aug);
                 break;
             }
         }
@@ -262,7 +324,7 @@ pub unsafe fn insert_color(mut node: *mut RbNode, root: *mut RbRoot) {
 /// # Safety
 ///
 /// `parent` must be the node returned by [`erase`]'s internal unlink step.
-unsafe fn erase_color(mut parent: *mut RbNode, root: *mut RbRoot) {
+unsafe fn erase_color<A: RbAugment>(mut parent: *mut RbNode, root: *mut RbRoot, aug: &A) {
     // SAFETY: nodes reached from a valid tree are valid.
     unsafe {
         let mut node: *mut RbNode = ptr::null_mut();
@@ -276,7 +338,7 @@ unsafe fn erase_color(mut parent: *mut RbNode, root: *mut RbRoot) {
                     (*parent).rb_right = tmp1;
                     (*sibling).rb_left = parent;
                     rb_set_parent_color(tmp1, parent, RB_BLACK);
-                    rotate_set_parents(parent, sibling, root, RB_RED);
+                    rotate_set_parents(parent, sibling, root, RB_RED, aug);
                     sibling = tmp1;
                 }
                 let mut tmp1 = (*sibling).rb_right;
@@ -304,6 +366,7 @@ unsafe fn erase_color(mut parent: *mut RbNode, root: *mut RbRoot) {
                     if !tmp1b.is_null() {
                         rb_set_parent_color(tmp1b, sibling, RB_BLACK);
                     }
+                    aug.rotate(sibling, tmp2);
                     tmp1 = sibling;
                     sibling = tmp2;
                 }
@@ -315,7 +378,7 @@ unsafe fn erase_color(mut parent: *mut RbNode, root: *mut RbRoot) {
                 if !tmp2.is_null() {
                     rb_set_parent(tmp2, parent);
                 }
-                rotate_set_parents(parent, sibling, root, RB_BLACK);
+                rotate_set_parents(parent, sibling, root, RB_BLACK, aug);
                 break;
             } else {
                 sibling = (*parent).rb_left;
@@ -325,7 +388,7 @@ unsafe fn erase_color(mut parent: *mut RbNode, root: *mut RbRoot) {
                     (*parent).rb_left = tmp1;
                     (*sibling).rb_right = parent;
                     rb_set_parent_color(tmp1, parent, RB_BLACK);
-                    rotate_set_parents(parent, sibling, root, RB_RED);
+                    rotate_set_parents(parent, sibling, root, RB_RED, aug);
                     sibling = tmp1;
                 }
                 let mut tmp1 = (*sibling).rb_left;
@@ -353,6 +416,7 @@ unsafe fn erase_color(mut parent: *mut RbNode, root: *mut RbRoot) {
                     if !tmp1b.is_null() {
                         rb_set_parent_color(tmp1b, sibling, RB_BLACK);
                     }
+                    aug.rotate(sibling, tmp2);
                     tmp1 = sibling;
                     sibling = tmp2;
                 }
@@ -364,7 +428,7 @@ unsafe fn erase_color(mut parent: *mut RbNode, root: *mut RbRoot) {
                 if !tmp2.is_null() {
                     rb_set_parent(tmp2, parent);
                 }
-                rotate_set_parents(parent, sibling, root, RB_BLACK);
+                rotate_set_parents(parent, sibling, root, RB_BLACK, aug);
                 break;
             }
         }
@@ -377,6 +441,17 @@ unsafe fn erase_color(mut parent: *mut RbNode, root: *mut RbRoot) {
 ///
 /// `node` must currently be in `root`.
 pub unsafe fn erase(node: *mut RbNode, root: *mut RbRoot) {
+    // SAFETY: forwarded to the caller's contract.
+    unsafe { erase_augmented(node, root, &NoAugment) }
+}
+
+/// `__rb_erase_augmented()`: as [`erase`], calling `aug.copy` and `aug.propagate`
+/// where C updates augmented data.
+///
+/// # Safety
+///
+/// As for [`erase`]; `aug`'s callbacks must be valid for the tree.
+pub unsafe fn erase_augmented<A: RbAugment>(node: *mut RbNode, root: *mut RbRoot, aug: &A) {
     // SAFETY: nodes reached from a valid tree are valid.
     unsafe {
         // __rb_erase_augmented() with dummy callbacks.
@@ -385,12 +460,15 @@ pub unsafe fn erase(node: *mut RbNode, root: *mut RbRoot) {
         let parent;
         let rebalance;
         let pc;
+        let target;
+        let mut leftmost = false;
 
         if tmp.is_null() {
             // Case 1: at most one child.
             pc = (*node).parent_color;
             parent = (pc & !3) as *mut RbNode;
             change_child(node, child, parent, root);
+            target = parent;
             if !child.is_null() {
                 (*child).parent_color = pc;
                 rebalance = ptr::null_mut();
@@ -407,6 +485,7 @@ pub unsafe fn erase(node: *mut RbNode, root: *mut RbRoot) {
             (*tmp).parent_color = pc;
             parent = (pc & !3) as *mut RbNode;
             change_child(node, tmp, parent, root);
+            target = parent;
             rebalance = ptr::null_mut();
         } else {
             let mut successor = child;
@@ -434,8 +513,13 @@ pub unsafe fn erase(node: *mut RbNode, root: *mut RbRoot) {
                 (*parent).rb_left = child2;
                 (*successor).rb_right = child;
                 rb_set_parent(child, successor);
+                leftmost = true;
             }
 
+            aug.copy(node, successor);
+            if leftmost {
+                aug.propagate(parent, successor);
+            }
             tmp = (*node).rb_left;
             (*successor).rb_left = tmp;
             rb_set_parent(tmp, successor);
@@ -455,10 +539,12 @@ pub unsafe fn erase(node: *mut RbNode, root: *mut RbRoot) {
                 };
             }
             (*successor).parent_color = pc2;
+            target = successor;
         }
 
+        aug.propagate(target, ptr::null_mut());
         if !rebalance.is_null() {
-            erase_color(rebalance, root);
+            erase_color(rebalance, root, aug);
         }
     }
 }
