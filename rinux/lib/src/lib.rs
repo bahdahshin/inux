@@ -14,6 +14,9 @@
 
 #![no_std]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 pub mod bucket_locks;
 pub mod bug;
 pub mod bust_spinlocks;
@@ -27,6 +30,8 @@ pub mod raid6;
 pub mod raid_xor;
 pub mod zstd_error;
 
+#[cfg(feature = "alloc")]
+pub mod alloc_helpers;
 pub mod argv_split;
 pub mod atomic64;
 pub mod base64;

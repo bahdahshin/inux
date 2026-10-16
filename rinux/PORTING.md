@@ -149,7 +149,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 112 | `lib/raid/raid6/mktables.c`, `lib/raid/raid6/int.uc` and `lib/raid/raid6/recov.c`: the GF(2^8) tables as const items, the P/Q syndrome and its partial update, and the two-disk and one-disk recovery (byte-wise, not word-wise); `lib/raid/xor/xor-8regs.c`: the 2- to 5-source XOR over eight-word groups. The SIMD variants, `algos.c` and `xor-8regs-prefetch.c` are not ported | done |
 | 113 | `lib/fw_table.c` and `include/linux/fw_table.h`: the generic subtable walker over a byte slice (`acpi_parse_entries_array()`) for the common ACPI subtable header and the CDAT layout, and `cdat_table_parse()`, with host tests for the CDAT and ACPI-style walks, the entry, handler and length rules; the HMAT, PRMT and CEDT layouts are not ported and return `EOPNOTSUPP`, and the handler gets the entry bytes rather than the table end | partial |
 | 114 | `lib/rcuref.c` and `include/linux/rcuref.h`: the RCU-safe reference count with its unsigned zones (ONEREF, SATURATED, RELEASED, DEAD, NOREF), the get and put fast paths and their slow paths, with the zone transitions checked one by one and a threaded balance test; the preemption guard in `rcuref_put()` and the `WARN_ONCE()` calls are not reproduced | done |
-| 115+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 115 | the allocating helpers behind an `alloc` cargo feature (`lib/src/alloc_helpers.rs`): `kasprintf()`, `match_strdup()` and `bitmap_alloc()`/`bitmap_zalloc()`, with the lib crate still allocation-free by default; this unblocks the allocator-blocked rows, and `devm_*()` and the user-copy wrappers remain | done |
+| 116+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -354,12 +355,12 @@ or `test` (a C test file ported to Rust tests).
 | klist tests | `lib/tests/klist_test.rs` | test | ordering, deletion during iteration, deferred unlink |
 | `lib/is_single_threaded.c` | `lib/src/is_single_threaded.rs` | partial | the walk over caller-supplied task records; no RCU or `task_struct` |
 | is_single_threaded tests | `lib/tests/is_single_threaded_test.rs` | test | |
-| `lib/vsprintf.c` | `lib/src/vsprintf.rs` | partial | arguments are an `Arg` slice; `%p` for resources, ranges, `%pE`, dentries, time, clocks, block devices, flags, firmware nodes and sockaddrs pending; `kasprintf()` needs the allocator; `vbin_printf()`/`bstr_printf()` and the `hash_pointers` boot options pending |
+| `lib/vsprintf.c` | `lib/src/vsprintf.rs` | partial | arguments are an `Arg` slice; `%p` for resources, ranges, `%pE`, dentries, time, clocks, block devices, flags, firmware nodes and sockaddrs pending; `kasprintf()` is in `alloc_helpers` behind the `alloc` feature; `vbin_printf()`/`bstr_printf()` and the `hash_pointers` boot options pending |
 | `include/linux/sprintf.h` | `lib/src/vsprintf.rs` | partial | as `lib/vsprintf.c` |
 | `lib/cmdline.c` | `lib/src/cmdline.rs` | done | |
-| `lib/parser.c` | `lib/src/parser.rs` | partial | `match_strdup()` needs the allocator |
+| `lib/parser.c` | `lib/src/parser.rs` | done | `match_strdup()` is in `alloc_helpers` behind the `alloc` feature |
 | `include/linux/parser.h` | `lib/src/parser.rs` | done | `substring_t` is a byte slice |
-| `lib/bitmap.c` | `lib/src/bitmap.rs` | partial | `bitmap_alloc()` family and `devm_*()` need the allocator |
+| `lib/bitmap.c` | `lib/src/bitmap.rs` | partial | `bitmap_alloc()` family is in `alloc_helpers` behind the `alloc` feature; `devm_*()` wait for devres |
 | `include/linux/bitmap.h` | `lib/src/bitmap.rs` | partial | as `lib/bitmap.c`; compile-time fast paths not needed |
 | `lib/bitmap-str.c` | `lib/src/bitmap.rs` | partial | `*_user()` wait for uaccess; printing fills the requested window without `kasprintf()` |
 | `include/linux/bitmap-str.h` | `lib/src/bitmap.rs` | partial | as `lib/bitmap-str.c` |

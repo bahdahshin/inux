@@ -12,3 +12,9 @@ name = "rinux_lib"
 
 [lints]
 workspace = true
+
+[features]
+# Allocating helpers (kasprintf, match_strdup, bitmap_alloc). The kernel
+# enables this and routes `alloc` through its kmalloc-backed global allocator.
+# Host builds leave it off so the default crate stays allocation-free.
+alloc = []
