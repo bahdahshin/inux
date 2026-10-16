@@ -608,3 +608,62 @@ mod parse_int_array_tests {
         assert_eq!(parse_int_array(b"abc"), Err(ENOENT));
     }
 }
+
+/// `kstrdup_quotable()`: a copy of the C string `src` with the characters of
+/// C's set (form feed, newline, carriage return, tab, vertical tab, bell,
+/// escape, backslash and double quote) hex-escaped as `\xhh`. Other bytes are
+/// copied. `None` for a missing source, which is `NULL` in C.
+///
+/// Returns the escaped bytes without the trailing NUL, the same convention
+/// as `kasprintf()`. Behind the `alloc` feature.
+#[cfg(feature = "alloc")]
+pub fn kstrdup_quotable(src: Option<&[u8]>) -> Option<alloc::vec::Vec<u8>> {
+    // The C string ends at its first NUL.
+    let src = src?;
+    let src = &src[..src.iter().position(|&b| b == 0).unwrap_or(src.len())];
+    let flags = ESCAPE_HEX;
+    // C's escape set, with a NUL to end it.
+    let esc: &[u8] = b"\x0c\n\r\t\x0b\x07\x1b\\\"\0";
+
+    let dlen = string_escape_mem(src, &mut [], flags, esc);
+    let mut dst = alloc::vec![0u8; dlen];
+    let written = string_escape_mem(src, &mut dst, flags, esc);
+    debug_assert_eq!(written, dlen);
+    Some(dst)
+}
+
+#[cfg(all(test, feature = "alloc"))]
+mod quotable_tests {
+    use super::*;
+
+    #[test]
+    fn plain_text_is_unchanged() {
+        assert_eq!(kstrdup_quotable(Some(b"hello")).unwrap(), b"hello");
+    }
+
+    #[test]
+    fn listed_controls_and_quotes_are_hex_escaped() {
+        // With ESCAPE_HEX the listed characters are hex-escaped, not given the
+        // named forms: \n is \x0a, \t is \x09, " is \x22, \ is \x5c.
+        assert_eq!(
+            kstrdup_quotable(Some(b"a\nb\t\"c\\")).unwrap(),
+            br"a\x0ab\x09\x22c\x5c"
+        );
+    }
+
+    #[test]
+    fn bytes_outside_the_listed_set_pass_through() {
+        // \x01 is not in the set, so it is copied as it is.
+        assert_eq!(kstrdup_quotable(Some(b"\x01")).unwrap(), b"\x01");
+    }
+
+    #[test]
+    fn the_string_ends_at_its_first_nul() {
+        assert_eq!(kstrdup_quotable(Some(b"ab\0cd")).unwrap(), b"ab");
+    }
+
+    #[test]
+    fn a_missing_source_is_none() {
+        assert!(kstrdup_quotable(None).is_none());
+    }
+}

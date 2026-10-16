@@ -158,7 +158,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 121 | `lib/src/task_block.rs`: the `TaskBlocker` trait (`block()` and `wake()` on task ids, as `schedule()` and `try_to_wake_up()`), with the sleep and wake paths of `wait.c` (`wait_event()`, `wake_up()`) and of `completion.c` (`wait_for_completion()`, `complete_wake()`) over it; host tests use a double that completes while the task sleeps | done |
 | 122 | `lib/src/printk.rs` and `lib/src/ratelimit.rs`: the ratelimit "N callbacks suppressed" line through the sink, at `LOGLEVEL_WARNING` when a window that suppressed events ends, and `seq_buf_do_printk()` as a sink call per line; host tests cover the report timing, the empty case and the line split | done |
 | 123 | `lib/string_helpers.c`: `parse_int_array()` over `get_options()`, returning the count and the integers as C's array does, behind the `alloc` feature; host tests cover the comma list, a negative value and the no-integer `ENOENT` case. The row for this file was stale: `string_get_size()` and the rest were already ported | done |
-| 124+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 124 | `lib/string_helpers.c`: `kstrdup_quotable()` over `string_escape_mem()` with `ESCAPE_HEX` and C's escape set, behind `alloc`; the escaped bytes are sized in a first pass, as `kasprintf()` does; host tests cover plain text, the hex-escaped set, bytes outside the set, the NUL end and the missing source | done |
+| 125+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -260,7 +261,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/ctype.h` | `lib/src/ctype.rs` | done | |
 | `lib/string.c` | `lib/src/string.rs` | done | `memcpy`/`memmove`/`memset` come from `core` |
 | `include/linux/string.h` | `lib/src/string.rs` | partial | inline helpers; declarations of `string_helpers.c` functions pending |
-| `lib/string_helpers.c` | `lib/src/string_helpers.rs` | done | `string_get_size()`, `string_unescape()`, `string_escape_mem()`, `strim()`, `sysfs_streq()`, `match_string()`, `sysfs_match_string()`, `strreplace()` and `parse_int_array()` (behind `alloc`); `memcpy_and_pad()`'s fortify hooks are not needed; the `kstrdup_quotable*` and `kasprintf_strarray()` allocating helpers wait for the next allocator step |
+| `lib/string_helpers.c` | `lib/src/string_helpers.rs` | done | `string_get_size()`, `string_unescape()`, `string_escape_mem()`, `strim()`, `sysfs_streq()`, `match_string()`, `sysfs_match_string()`, `strreplace()`, `parse_int_array()` and `kstrdup_quotable()` (the last two behind `alloc`); `memcpy_and_pad()`'s fortify hooks are not needed; `kstrdup_quotable_cmdline()` and `kstrdup_quotable_file()` need the task and file layers |
 | `include/linux/string_helpers.h` | `lib/src/string.rs` | partial | the `UNESCAPE_*` and `ESCAPE_*` flags |
 | string escape/unescape tests | `lib/tests/string_escape_kunit.rs` | test | per-class checks, `only`/append, truncation, and an all-bytes escape/unescape round-trip |
 | `lib/kstrtox.c` | `lib/src/kstrtox.rs` | done | every `kstrto*()` and `kstrto*_from_user()` over `UserMemory`, including the 16- and 8-bit forms and `kstrtobool` |
