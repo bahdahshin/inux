@@ -38,6 +38,7 @@ pub mod earlycpio;
 pub mod errname;
 pub mod errno;
 pub mod errseq;
+pub mod extable;
 pub mod find_bit;
 pub mod genalloc;
 pub mod glob;
