@@ -31,3 +31,74 @@ pub fn convert_prio(prio: i32) -> Option<i32> {
         _ => None,
     }
 }
+
+/// `struct cpupri` over `N` CPUs: which CPUs sit at each level, and the level
+/// each CPU is at.
+#[derive(Debug)]
+pub struct CpuPri<const N: usize> {
+    /// `cpu_to_pri`: each CPU's current level.
+    cpu_to_pri: [i32; N],
+    /// `pri_to_cpu[level].mask` and `.count`: membership, per level.
+    members: [[bool; N]; CPUPRI_NR_PRIORITIES as usize],
+    counts: [usize; CPUPRI_NR_PRIORITIES as usize],
+}
+
+impl<const N: usize> Default for CpuPri<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<const N: usize> CpuPri<N> {
+    /// `cpupri_init()`: every CPU starts INVALID, so none is routable.
+    pub fn new() -> Self {
+        Self {
+            cpu_to_pri: [CPUPRI_INVALID; N],
+            members: [[false; N]; CPUPRI_NR_PRIORITIES as usize],
+            counts: [0; CPUPRI_NR_PRIORITIES as usize],
+        }
+    }
+
+    /// `cpupri_set()`: move `cpu` to the level of task priority `newpri`.
+    /// Panics if `newpri` is outside the scale, as C's BUG_ON does.
+    pub fn set(&mut self, cpu: usize, newpri: i32) {
+        let newpri = convert_prio(newpri).expect("task priority outside the cpupri scale");
+        let oldpri = self.cpu_to_pri[cpu];
+        if newpri == oldpri {
+            return;
+        }
+        if newpri != CPUPRI_INVALID {
+            let l = newpri as usize;
+            self.members[l][cpu] = true;
+            self.counts[l] += 1;
+        }
+        if oldpri != CPUPRI_INVALID {
+            let l = oldpri as usize;
+            self.members[l][cpu] = false;
+            self.counts[l] -= 1;
+        }
+        self.cpu_to_pri[cpu] = newpri;
+    }
+
+    /// The level `cpu` is at.
+    pub fn level(&self, cpu: usize) -> i32 {
+        self.cpu_to_pri[cpu]
+    }
+
+    /// `cpupri_find()` without a fitness function: the first CPU, in order,
+    /// that is at a level below `task_prio`'s and allowed by `allowed`. The
+    /// levels are searched from the lowest up, as C does, so the least urgent
+    /// CPU that can take the task is chosen.
+    pub fn find(&self, task_prio: i32, allowed: &[bool; N]) -> Option<usize> {
+        let task_level = convert_prio(task_prio)?;
+        for idx in 0..task_level.max(0) as usize {
+            if self.counts[idx] == 0 {
+                continue;
+            }
+            if let Some(cpu) = (0..N).find(|&c| self.members[idx][c] && allowed[c]) {
+                return Some(cpu);
+            }
+        }
+        None
+    }
+}

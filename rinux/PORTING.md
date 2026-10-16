@@ -496,7 +496,7 @@ or `test` (a C test file ported to Rust tests).
 | `kernel/sched/cputime.c` (`cputime_adjust`) | `lib/src/cputime.rs` | partial | the monotonic split of precise runtime into user and system time, with the sample and previous state explicit; the per-task lock and the tick accounting wait for the scheduler |
 | `kernel/sched/deadline.c` (CBS rules) | `lib/src/sched_dl_cbs.rs` | partial | `replenish_dl_new_period()`, `replenish_dl_entity()` and `dl_entity_overflow()` over explicit parameters; the deferred-server, yield and tracing paths and the rq clock wait for the scheduler |
 | `kernel/sched/sched.h` (`DL_SCALE`) | `lib/src/sched_dl_cbs.rs` | done | the overflow scale |
-| `kernel/sched/cpupri.c` (`convert_prio`) | `lib/src/cpupri.rs` | partial | the task-priority to cpupri level mapping; the two-dimensional level bitmap and its search wait |
+| `kernel/sched/cpupri.c` | `lib/src/cpupri.rs` | partial | `convert_prio()`, `cpupri_set()` and `cpupri_find()` without a fitness function, over per-level membership; the cpumask-based fitness search and the atomics wait |
 | `kernel/sched/cpupri.h` | `lib/src/cpupri.rs` | done | the level constants |
 | `kernel/sched/completion.c` | `lib/src/completion.rs` | partial | `complete()`, `complete_all()`, `try_wait_for_completion()` and `completion_done()` over an atomic count with C's UINT_MAX meaning; the blocking waits wait for the scheduler |
 | `include/linux/completion.h` | `lib/src/completion.rs` | partial | the count and its states; the wait queue member waits |
