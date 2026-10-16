@@ -77,7 +77,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 38 | `lib/min_heap.c` and `include/linux/min_heap.h`: a generic binary min-heap over a caller slice, with the header's algorithms and host tests for order, pop-push, delete and the empty and full cases | done |
 | 39 | `lib/memregion.c` and the `ida_*` part of `lib/idr.c`: lowest-free-id allocation over a fixed bitmap, with host tests | partial |
 | 40 | `lib/crypto/arc4.c` (core) and `include/crypto/arc4.h`: the ARC4 stream cipher, with published vectors and split-call tests | partial |
-| 41+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 41 | `lib/crypto/chacha*` and `include/crypto/chacha.h`: the RFC 7539 ChaCha block, stream and HChaCha functions, checked against the RFC vectors and split calls | done |
+| 42+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -601,6 +602,9 @@ or `test` (a C test file ported to Rust tests).
 | `lib/idr.c` (`ida_*`) | `lib/src/ida.rs` | partial | `Ida<N>`: `ida_alloc()`, `ida_alloc_range()` and `ida_free()` over a fixed bitmap; the radix tree and the IDR pointer mapping wait |
 | `lib/crypto/arc4.c` | `lib/src/crypto/arc4.rs` | partial | `Arc4Ctx::new()` (`arc4_setkey()`) and `crypt()` (`arc4_crypt()`), checked against published vectors; the `ecb(arc4)` lskcipher registration in `crypto/arc4.c` waits for the crypto API |
 | `include/crypto/arc4.h` | `lib/src/crypto/arc4.rs` | done | the key-size limits and block size as constants |
+| `lib/crypto/chacha.c` | `lib/src/crypto/chacha.rs` | done | `ChachaState::new()`, `block()`, `crypt()` and `hchacha_block()` as the generic code; the SIMD versions compute the same bytes and are not ported |
+| `lib/crypto/chacha-block-generic.c` | `lib/src/crypto/chacha.rs` | done | `chacha_permute()` and the block and HChaCha functions |
+| `include/crypto/chacha.h` | `lib/src/crypto/chacha.rs` | done | the sizes and the constants; the `chacha_init()` helper is `ChachaState::new()` |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
