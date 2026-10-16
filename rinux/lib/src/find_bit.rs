@@ -483,3 +483,18 @@ pub fn for_each_set_clump8(bits: &[u64], size: usize) -> Clump8Iter<'_> {
         clump,
     }
 }
+
+/// `find_random_bit()`: the position of a random set bit, or `size` if there
+/// are none. A single set bit is found directly, with no draw.
+pub fn find_random_bit(
+    addr: &[u64],
+    size: usize,
+    rng: &mut impl crate::random::RandomSource,
+) -> usize {
+    let w = crate::bitmap::bitmap_weight(addr, size);
+    match w {
+        0 => size,
+        1 => find_first_bit(addr, size),
+        _ => find_nth_bit(addr, size, rng.get_random_u32_below(w as u32) as usize),
+    }
+}

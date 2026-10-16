@@ -226,3 +226,13 @@ pub fn uuid_parse(uuid: impl AsRef<[u8]>) -> Result<Uuid> {
         b: __uuid_parse(uuid.as_ref(), &UUID_INDEX)?,
     })
 }
+
+/// `generate_random_uuid()` drawing from a [`RandomSource`].
+pub fn generate_random_uuid_from(uuid: &mut [u8; 16], rng: &mut impl crate::random::RandomSource) {
+    generate_random_uuid(uuid, |b| rng.get_random_bytes(b));
+}
+
+/// `generate_random_guid()` drawing from a [`RandomSource`].
+pub fn generate_random_guid_from(guid: &mut [u8; 16], rng: &mut impl crate::random::RandomSource) {
+    generate_random_guid(guid, |b| rng.get_random_bytes(b));
+}

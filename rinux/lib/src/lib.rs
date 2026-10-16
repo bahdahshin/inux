@@ -99,6 +99,7 @@ pub mod parser;
 pub mod percpu;
 pub mod plist;
 pub mod printk;
+pub mod random;
 pub mod random32;
 pub mod ratelimit;
 pub mod rbtree;
