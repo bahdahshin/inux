@@ -107,7 +107,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 69 | `lib/interval_tree.c` and `include/linux/interval_tree_generic.h`: interval trees over the augmented rbtree, checked against brute-force overlap over random inserts, removals and queries; the span iterator is not ported | partial |
 | 70 | `lib/strncpy_from_user.c`: copy a string from user memory bounded by a count, over a reader that reports faults, with tests for the NUL, count, empty and fault cases | partial |
 | 71 | `lib/strnlen_user.c`: the bounded user-string length with its three return values, with tests for length, too-long and fault cases | partial |
-| 72+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 72 | `lib/usercopy.c`: `check_zeroed_user()` with the early exit and the fault result, with tests; the copy wrappers wait for the user-access layer | partial |
+| 73+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -681,6 +682,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/interval_tree_generic.h` | `lib/src/interval_tree.rs` | done | the generic algorithms and the `RB_DECLARE_CALLBACKS_MAX` callbacks for the subtree maximum |
 | `lib/strncpy_from_user.c` | `lib/src/strncpy_from_user.rs` | partial | `strncpy_from_user()` over a user-byte reader that returns None for a fault; the word-at-a-time path, the masking after the NUL and the page-table walk wait for the kernel's user-access layer |
 | `lib/strnlen_user.c` | `lib/src/strnlen_user.rs` | partial | `strnlen_user()` with C's convention (length plus NUL, count plus one when too long, 0 on fault); the word search and the user-access layer wait for the kernel |
+| `lib/usercopy.c` | `lib/src/usercopy.rs` | partial | `check_zeroed_user()` as a byte check with C's early exit at the first non-zero byte and its -EFAULT; the `_copy_from_user` and `_copy_to_user` wrappers are the kernel's user-access layer and wait |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |

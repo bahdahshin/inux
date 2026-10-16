@@ -86,6 +86,7 @@ pub mod timerqueue;
 pub mod ts_bm;
 pub mod ts_kmp;
 pub mod union_find;
+pub mod usercopy;
 pub mod uuid;
 pub mod vsprintf;
 pub mod win_minmax;
