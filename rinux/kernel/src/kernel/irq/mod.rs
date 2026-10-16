@@ -14,6 +14,8 @@ use rinux_lib::errno::{EBUSY, EINVAL, Result};
 use crate::arch::x86::include::i8259::NR_IRQS_LEGACY;
 use crate::kernel::locking::SpinLock;
 
+pub mod regs;
+
 /// `NR_IRQS` for now: the legacy ISA interrupts.
 pub const NR_IRQS: usize = NR_IRQS_LEGACY as usize;
 

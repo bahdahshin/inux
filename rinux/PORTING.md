@@ -88,7 +88,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 49 | `lib/crypto/mpi/mpi-bit.c`: bit count, bit test, bit set and right shift over fixed MPI storage, with u128 tests | partial |
 | 50 | `lib/crypto/mpi/mpih-mul.c` (basecase): `mul_n_basecase()` and `mpih_sqr_n_basecase()`, checked against a u128 column reference for sizes 1 to 6 | partial |
 | 51 | `include/linux/percpu-defs.h`: a per-CPU slot array (`PerCpu<T, N>`) with the this_cpu access rule, with host tests for independence and bounds | partial |
-| 52+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 52 | `lib/irq_regs.c` and `include/asm-generic/irq_regs.h`: the per-CPU interrupt frame, using `PerCpu` from rinux-lib; the kernel builds for x86_64-unknown-none | done |
+| 53+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -633,6 +634,8 @@ or `test` (a C test file ported to Rust tests).
 | `lib/crypto/mpi/mpi-bit.c` | `lib/src/crypto/mpi_bit.rs` | partial | `get_nbits()`, `test_bit()`, `set_bit()` (ENOMEM beyond storage) and `mpi_rshift()`, with the in-place mode left to the caller; host tests against u128 bit arithmetic |
 | `lib/crypto/mpi/mpih-mul.c` (`mul_n_basecase`, `mpih_sqr_n_basecase`) | `lib/src/crypto/mpi_sqr.rs` | partial | the schoolbook product and its squaring; the Karatsuba `mul_n`, `mpih_sqr_n` and `mpih_mul` wait |
 | `include/linux/percpu-defs.h` (`DEFINE_PER_CPU`, `per_cpu_ptr`) | `lib/src/percpu.rs` | partial | `PerCpu<T, N>`: one slot per CPU with `get_mut()` (safe) and `with_cpu()` (unsafe, with the this_cpu rule); the kernel does not use it yet, as rinux runs one CPU and the per-CPU offsets wait |
+| `lib/irq_regs.c` | `kernel/src/kernel/irq/regs.rs` | done | `get_irq_regs()` and `set_irq_regs()` over a `PerCpu` slot holding the frame address; the `DEFINE_PER_CPU` storage is the slot |
+| `include/asm-generic/irq_regs.h` | `kernel/src/kernel/irq/regs.rs` | done | the accessors; the `Option` return stands in for the null pointer |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |

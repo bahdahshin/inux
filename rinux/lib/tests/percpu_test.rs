@@ -42,3 +42,17 @@ fn a_cpu_past_the_end_panics() {
     let mut p: PerCpu<u8, 2> = PerCpu::new(|_| 0);
     let _ = p.get_mut(2);
 }
+
+static STATIC_SLOTS: PerCpu<u32, 2> = PerCpu::from_array([7, 9]);
+
+#[test]
+fn from_array_works_in_a_static() {
+    // SAFETY: single-threaded test; each call names one slot at a time.
+    let (a, b) = unsafe {
+        (
+            STATIC_SLOTS.with_cpu(0, |v| *v),
+            STATIC_SLOTS.with_cpu(1, |v| *v),
+        )
+    };
+    assert_eq!((a, b), (7, 9));
+}

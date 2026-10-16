@@ -13,12 +13,15 @@
 //! CPU mid-access. [`PerCpu::get_mut`] enforces that by borrowing the whole
 //! array mutably, so it is always safe. [`PerCpu::with_cpu`] allows shared use
 //! from a `&self`, and is `unsafe` because the caller must uphold the rule.
+//!
+//! The slots live in one `UnsafeCell` so that [`PerCpu::from_array`] can be a
+//! `const fn`, which a `static` needs.
 
 use core::cell::UnsafeCell;
 
 /// A `T` per CPU, for `N` CPUs.
 pub struct PerCpu<T, const N: usize> {
-    slots: [UnsafeCell<T>; N],
+    slots: UnsafeCell<[T; N]>,
 }
 
 // SAFETY: each slot is only accessed by its own CPU, under the rule in the
@@ -26,11 +29,17 @@ pub struct PerCpu<T, const N: usize> {
 unsafe impl<T: Send, const N: usize> Sync for PerCpu<T, N> {}
 
 impl<T, const N: usize> PerCpu<T, N> {
+    /// `DEFINE_PER_CPU()` with the starting values given in order, usable in a
+    /// `static`.
+    pub const fn from_array(values: [T; N]) -> Self {
+        Self {
+            slots: UnsafeCell::new(values),
+        }
+    }
+
     /// `DEFINE_PER_CPU()`: `init(cpu)` gives each CPU its starting value.
     pub fn new(mut init: impl FnMut(usize) -> T) -> Self {
-        Self {
-            slots: core::array::from_fn(|cpu| UnsafeCell::new(init(cpu))),
-        }
+        Self::from_array(core::array::from_fn(|cpu| init(cpu)))
     }
 
     /// The number of CPUs (slots).
@@ -41,7 +50,7 @@ impl<T, const N: usize> PerCpu<T, N> {
     /// `per_cpu_ptr()` for a `&mut` owner: the slot of `cpu`. Panics if `cpu`
     /// is out of range.
     pub fn get_mut(&mut self, cpu: usize) -> &mut T {
-        self.slots[cpu].get_mut()
+        &mut self.slots.get_mut()[cpu]
     }
 
     /// `this_cpu_ptr()`-style access from shared state: run `f` on the slot of
@@ -54,6 +63,6 @@ impl<T, const N: usize> PerCpu<T, N> {
     /// are the rules `this_cpu_ptr()` depends on in C.
     pub unsafe fn with_cpu<R>(&self, cpu: usize, f: impl FnOnce(&mut T) -> R) -> R {
         // SAFETY: the caller guarantees exclusive use of this slot.
-        f(unsafe { &mut *self.slots[cpu].get() })
+        f(unsafe { &mut (&mut *self.slots.get())[cpu] })
     }
 }
