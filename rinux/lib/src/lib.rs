@@ -80,6 +80,7 @@ pub mod sha256;
 pub mod siphash;
 pub mod sort;
 pub mod string;
+pub mod strncpy_from_user;
 pub mod timerqueue;
 pub mod ts_bm;
 pub mod ts_kmp;

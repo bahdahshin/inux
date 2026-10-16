@@ -105,7 +105,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 67 | `lib/bucket_locks.c`: the hashed spinlock array with its sizing rule and mask, with tests for sizing, mask selection and mutual exclusion in one bucket | done |
 | 68 | `include/linux/rbtree_augmented.h` (kernel side of augmentation): the `RbAugment` hooks, called from insertion rotations and erase exactly where C calls them; host test keeps a subtree maximum through random inserts and erases and checks it after every operation | done |
 | 69 | `lib/interval_tree.c` and `include/linux/interval_tree_generic.h`: interval trees over the augmented rbtree, checked against brute-force overlap over random inserts, removals and queries; the span iterator is not ported | partial |
-| 70+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 70 | `lib/strncpy_from_user.c`: copy a string from user memory bounded by a count, over a reader that reports faults, with tests for the NUL, count, empty and fault cases | partial |
+| 71+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -677,6 +678,7 @@ or `test` (a C test file ported to Rust tests).
 | `lib/bucket_locks.c` | `lib/src/bucket_locks.rs` | done | `bucket_locks_size()` (the sizing rule and mask) and `BucketLocks` over caller-provided spinlock flags, with `lock(hash)`; the kvmalloc and lockdep init stay with the caller |
 | `lib/interval_tree.c` | `lib/src/interval_tree.rs` | partial | insert, remove, subtree search, `iter_first()` and `iter_next()` on the augmented rbtree; the span iterator (`CONFIG_INTERVAL_TREE_SPAN_ITER`) waits; the leftmost node is found by walking rather than cached |
 | `include/linux/interval_tree_generic.h` | `lib/src/interval_tree.rs` | done | the generic algorithms and the `RB_DECLARE_CALLBACKS_MAX` callbacks for the subtree maximum |
+| `lib/strncpy_from_user.c` | `lib/src/strncpy_from_user.rs` | partial | `strncpy_from_user()` over a user-byte reader that returns None for a fault; the word-at-a-time path, the masking after the NUL and the page-table walk wait for the kernel's user-access layer |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
