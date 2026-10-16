@@ -150,7 +150,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 113 | `lib/fw_table.c` and `include/linux/fw_table.h`: the generic subtable walker over a byte slice (`acpi_parse_entries_array()`) for the common ACPI subtable header and the CDAT layout, and `cdat_table_parse()`, with host tests for the CDAT and ACPI-style walks, the entry, handler and length rules; the HMAT, PRMT and CEDT layouts are not ported and return `EOPNOTSUPP`, and the handler gets the entry bytes rather than the table end | partial |
 | 114 | `lib/rcuref.c` and `include/linux/rcuref.h`: the RCU-safe reference count with its unsigned zones (ONEREF, SATURATED, RELEASED, DEAD, NOREF), the get and put fast paths and their slow paths, with the zone transitions checked one by one and a threaded balance test; the preemption guard in `rcuref_put()` and the `WARN_ONCE()` calls are not reproduced | done |
 | 115 | the allocating helpers behind an `alloc` cargo feature (`lib/src/alloc_helpers.rs`): `kasprintf()`, `match_strdup()` and `bitmap_alloc()`/`bitmap_zalloc()`, with the lib crate still allocation-free by default; this unblocks the allocator-blocked rows, and `devm_*()` and the user-copy wrappers remain | done |
-| 116+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 116 | `lib/src/printk.rs`: the log levels and a `Sink` that lib functions print through, one line at a time, so the lib needs no global state; the kernel passes a sink that calls its `printk()`. `print_hex_dump()` uses it, with the address, offset and none prefixes and the line limit; host tests check the rows, prefixes, levels and truncation | done |
+| 117+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -272,7 +273,7 @@ or `test` (a C test file ported to Rust tests).
 | `lib/bitrev.c` | `lib/src/bitrev.rs` | done | generated table |
 | `include/linux/bitrev.h` | `lib/src/bitrev.rs` | done | |
 | `include/asm-generic/bitops/__bitrev.h` | `lib/src/bitrev.rs` | done | |
-| `lib/hexdump.c` | `lib/src/hexdump.rs` | partial | `print_hex_dump()` waits for printk |
+| `lib/hexdump.c` | `lib/src/hexdump.rs` | done | `print_hex_dump()` over a line sink in `lib/src/printk.rs`; `DUMP_PREFIX_ADDRESS` shows the address as `0x` and 16 digits, without `%p` hashing |
 | `include/linux/hex.h` | `lib/src/hexdump.rs` | done | |
 | `lib/glob.c` | `lib/src/glob.rs` | done | |
 | `include/linux/glob.h` | `lib/src/glob.rs` | done | |

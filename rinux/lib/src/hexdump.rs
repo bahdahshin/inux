@@ -226,3 +226,125 @@ pub fn hex_dump_to_buffer(
     linebuf[lx] = 0;
     lx as i32
 }
+
+/// `enum dump_prefix_type`: what starts each line of [`print_hex_dump`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DumpPrefix {
+    /// `DUMP_PREFIX_NONE`: only the caller's prefix string.
+    None,
+    /// `DUMP_PREFIX_ADDRESS`: the address of the row, as `0x` and 16 digits.
+    /// The caller's prefix string is not used. C's `%p` hashing is not
+    /// reproduced.
+    Address,
+    /// `DUMP_PREFIX_OFFSET`: the caller's prefix string, then the offset of
+    /// the row as 8 hex digits.
+    Offset,
+}
+
+/// The parameters of `print_hex_dump()` other than the level and the data.
+#[derive(Clone, Copy, Debug)]
+pub struct DumpOpts<'a> {
+    /// The string in front of each row for [`DumpPrefix::None`] and
+    /// [`DumpPrefix::Offset`].
+    pub prefix_str: &'a [u8],
+    /// What starts each row.
+    pub prefix_type: DumpPrefix,
+    /// Bytes per row: 16 or 32; anything else means 16.
+    pub rowsize: i32,
+    /// Bytes per group, as [`hex_dump_to_buffer`] takes them.
+    pub groupsize: i32,
+    /// The address of `buf[0]`, shown by [`DumpPrefix::Address`].
+    pub base: u64,
+    /// Whether each row ends with the printable ASCII.
+    pub ascii: bool,
+}
+
+/// `print_hex_dump()`: formats `buf` one row at a time and passes each row to
+/// `sink` at `level`, without the trailing newline.
+pub fn print_hex_dump(
+    level: i32,
+    opts: DumpOpts<'_>,
+    buf: &[u8],
+    sink: &mut crate::printk::Sink<'_>,
+) {
+    let rowsize = if opts.rowsize != 16 && opts.rowsize != 32 {
+        16
+    } else {
+        opts.rowsize as usize
+    };
+
+    // Big enough for a 32-byte row with the ASCII column.
+    let mut linebuf = [0u8; 32 * 3 + 2 + 32 + 1];
+    let mut line = Line::new();
+    for (i, row) in buf.chunks(rowsize).enumerate() {
+        let offset = i * rowsize;
+        hex_dump_to_buffer(
+            row,
+            rowsize as i32,
+            opts.groupsize,
+            &mut linebuf,
+            opts.ascii,
+        );
+        let text = &linebuf[..linebuf
+            .iter()
+            .position(|&b| b == 0)
+            .unwrap_or(linebuf.len())];
+
+        line.clear();
+        match opts.prefix_type {
+            DumpPrefix::Address => {
+                line.push_bytes(b"0x");
+                line.push_hex(opts.base + offset as u64, 16);
+                line.push_bytes(b": ");
+            }
+            DumpPrefix::Offset => {
+                line.push_bytes(opts.prefix_str);
+                line.push_hex(offset as u64, 8);
+                line.push_bytes(b": ");
+            }
+            DumpPrefix::None => line.push_bytes(opts.prefix_str),
+        }
+        line.push_bytes(text);
+        sink(level, line.as_bytes());
+    }
+}
+
+/// Longest line [`print_hex_dump`] passes to its sink. The caller's prefix
+/// string is cut to fit, as the kernel's printk cuts its message buffer.
+pub const DUMP_LINE_MAX: usize = 512;
+
+/// A fixed-size line buffer. It drops what does not fit.
+struct Line {
+    buf: [u8; DUMP_LINE_MAX],
+    len: usize,
+}
+
+impl Line {
+    const fn new() -> Self {
+        Self {
+            buf: [0; DUMP_LINE_MAX],
+            len: 0,
+        }
+    }
+
+    fn clear(&mut self) {
+        self.len = 0;
+    }
+
+    fn push_bytes(&mut self, bytes: &[u8]) {
+        let n = bytes.len().min(DUMP_LINE_MAX - self.len);
+        self.buf[self.len..self.len + n].copy_from_slice(&bytes[..n]);
+        self.len += n;
+    }
+
+    /// `%0<width>x`, most significant digit first.
+    fn push_hex(&mut self, value: u64, width: usize) {
+        for k in (0..width).rev() {
+            self.push_bytes(&[HEX_ASC[((value >> (4 * k)) & 0xf) as usize]]);
+        }
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        &self.buf[..self.len]
+    }
+}

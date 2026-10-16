@@ -98,6 +98,7 @@ pub mod packing;
 pub mod parser;
 pub mod percpu;
 pub mod plist;
+pub mod printk;
 pub mod random32;
 pub mod ratelimit;
 pub mod rbtree;
