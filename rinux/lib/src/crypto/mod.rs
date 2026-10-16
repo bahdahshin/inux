@@ -11,3 +11,4 @@ pub mod mpi;
 pub mod mpi_mul;
 pub mod mpi_obj;
 pub mod mpi_shift;
+pub mod mpi_sub_ui;

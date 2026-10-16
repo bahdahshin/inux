@@ -83,7 +83,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 44 | `lib/crypto/mpi/` multiply by one limb: `mpihelp_mul_1()`, `mpihelp_addmul_1()` and `mpihelp_submul_1()`, checked against limb-by-limb 128-bit arithmetic | done |
 | 45 | `lib/crypto/mpi/mpi-cmp.c` and the `Mpi` object: signed comparison over a borrowed limb view, with normalisation and host tests following each branch | partial |
 | 46 | `lib/crypto/hash_info.c` and `include/uapi/linux/hash_info.h`: the hash algorithm enum, names and digest sizes, with a test pinning each to the C table | done |
-| 47+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 47 | `lib/crypto/mpi/mpi-sub-ui.c`: `w = u - v` for an MPI and a limb, with fixed storage and a signed-arithmetic test over edge values | done |
+| 48+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -623,6 +624,7 @@ or `test` (a C test file ported to Rust tests).
 | `lib/crypto/mpi/mpi-bit.c` (`mpi_normalize`) | `lib/src/crypto/mpi_obj.rs` | partial | `Mpi::normalize()`; the bit-count and shift functions of mpi-bit.c are not ported |
 | `lib/crypto/hash_info.c` | `lib/src/crypto/hash_info.rs` | done | `HashAlgo::name()` and `HashAlgo::digest_size()` as matches on the enum, in the C enum order |
 | `include/uapi/linux/hash_info.h` | `lib/src/crypto/hash_info.rs` | done | `enum hash_algo` as `HashAlgo` |
+| `lib/crypto/mpi/mpi-sub-ui.c` | `lib/src/crypto/mpi_sub_ui.rs` | done | `mpi_sub_ui()` with fixed storage: `mpi_resize()` becomes an `ENOMEM` check; the limb add and subtract loops are inline until `mpih-add1`/`sub1` helpers land |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
