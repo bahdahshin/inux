@@ -100,7 +100,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 62 | `lib/crypto/sm3.c`: the SM3 hash, checked against the two GB/T 32905 examples and split updates | done |
 | 63 | `crypto/sm4.c` (core) and `include/crypto/sm4.h`: the SM4 block cipher with its key schedule, checked against the GB/T 32907 example and a decryption round trip | partial |
 | 64 | `lib/math/prime_numbers.c`: the prime sieve over a caller bitmap, checked against trial division inside its range and walked for next_prime; growth and RCU wait | partial |
-| 65+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 65 | `lib/earlycpio.c`: `find_cpio_data()` for newc archives in memory, with tests over archives built in the test (lookup, next offset, missing, bad magic, directory) | done |
+| 66+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -667,6 +668,7 @@ or `test` (a C test file ported to Rust tests).
 | `crypto/sm3.c` | — | not ported | the Crypto API shash wrapper (registration and export/import) waits for the crypto API |
 | `crypto/sm4.c` | `lib/src/crypto/sm4.rs` | partial | `sm4_expandkey()` and `sm4_crypt_block()` with the S-box copied from the C table; the Crypto API `sm4_alg` registration waits |
 | `include/crypto/sm4.h` | `lib/src/crypto/sm4.rs` | partial | the block and key sizes, and the round-key context |
+| `lib/earlycpio.c` | `lib/src/earlycpio.rs` | done | `find_cpio_data()` over byte offsets, parsing the newc hex fields as C does and returning name and data as slices; host tests build archives and check lookup, next offset, a missing name, bad magic and directories |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
