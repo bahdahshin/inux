@@ -14,6 +14,7 @@
 
 #![no_std]
 
+pub mod bucket_locks;
 pub mod bug;
 pub mod bust_spinlocks;
 pub mod check_signature;

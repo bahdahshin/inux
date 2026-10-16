@@ -102,7 +102,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 64 | `lib/math/prime_numbers.c`: the prime sieve over a caller bitmap, checked against trial division inside its range and walked for next_prime; growth and RCU wait | partial |
 | 65 | `lib/earlycpio.c`: `find_cpio_data()` for newc archives in memory, with tests over archives built in the test (lookup, next offset, missing, bad magic, directory) | done |
 | 66 | `lib/cmpxchg-emu.c`: the one-byte compare-and-swap built on a 32-bit word, with tests for position, mismatch and concurrent neighbouring bytes | done |
-| 67+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 67 | `lib/bucket_locks.c`: the hashed spinlock array with its sizing rule and mask, with tests for sizing, mask selection and mutual exclusion in one bucket | done |
+| 68+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -671,6 +672,7 @@ or `test` (a C test file ported to Rust tests).
 | `include/crypto/sm4.h` | `lib/src/crypto/sm4.rs` | partial | the block and key sizes, and the round-key context |
 | `lib/earlycpio.c` | `lib/src/earlycpio.rs` | done | `find_cpio_data()` over byte offsets, parsing the newc hex fields as C does and returning name and data as slices; host tests build archives and check lookup, next offset, a missing name, bad magic and directories |
 | `lib/cmpxchg-emu.c` | `lib/src/cmpxchg_emu.rs` | done | `cmpxchg_emu_u8()` as a compare-and-swap of one byte inside an `AtomicU32` word, little-endian as the C union; host tests cover the position, mismatch, word crossing and four threads on neighbouring bytes |
+| `lib/bucket_locks.c` | `lib/src/bucket_locks.rs` | done | `bucket_locks_size()` (the sizing rule and mask) and `BucketLocks` over caller-provided spinlock flags, with `lock(hash)`; the kvmalloc and lockdep init stay with the caller |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
