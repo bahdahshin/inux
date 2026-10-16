@@ -57,6 +57,7 @@ pub mod libgcc;
 pub mod linear_ranges;
 pub mod list;
 pub mod llist;
+pub mod loadavg;
 pub mod lockref;
 pub mod lwq;
 pub mod math;
