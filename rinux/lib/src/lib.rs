@@ -47,6 +47,7 @@ pub mod list;
 pub mod llist;
 pub mod math;
 pub mod md5;
+pub mod memcat_p;
 pub mod memweight;
 pub mod mktime;
 pub mod net_utils;
