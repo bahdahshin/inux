@@ -26,6 +26,7 @@ pub mod cputime;
 pub mod argv_split;
 pub mod base64;
 pub mod bcd;
+pub mod bitfield;
 pub mod bitmap;
 pub mod bitmap_str;
 pub mod bitops;
