@@ -112,7 +112,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 74 | `lib/iomap_copy.c`: MMIO block copies of 32- and 64-bit words through register closures, with tests for order, read-back and empty copies | done |
 | 75 | `lib/iomem_copy.c`: I/O memory fill and copies as byte operations over closures, with tests for fill, round trip and empty ranges | done |
 | 76 | `lib/extable.c`: the exception table sort and binary search over absolute addresses, with tests for lookup hits and misses and a shuffled 1000-entry table | partial |
-| 77+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 77 | `lib/decompress.c`: the compression magic table and `decompress_method()`, with tests for each magic and short or unknown input; the decompressors wait | partial |
+| 78+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -689,6 +690,7 @@ or `test` (a C test file ported to Rust tests).
 | `lib/usercopy.c` | `lib/src/usercopy.rs` | partial | `check_zeroed_user()` as a byte check with C's early exit at the first non-zero byte and its -EFAULT; the `_copy_from_user` and `_copy_to_user` wrappers are the kernel's user-access layer and wait |
 | `lib/iomap_copy.c` | `lib/src/iomap_copy.rs` | done | `iowrite32_copy()`, `ioread32_copy()` and `iowrite64_copy()` with the raw register accesses as closures; word-at-a-time, one access per word as C |
 | `lib/iomem_copy.c` | `lib/src/iomem_copy.rs` | done | `memset_io()`, `memcpy_fromio()` and `memcpy_toio()` as byte operations over closures; the word-width bus accesses are left to the kernel's accessors |
+| `lib/decompress.c` | `lib/src/decompress.rs` | partial | `decompress_method()` as the magic table naming the method (gzip, bzip2, lzma, xz, lzo, lz4, zstd); the decompressors themselves are separate files and wait |
 | `lib/extable.c` | `lib/src/extable.rs` | partial | `sort_extable()` as an in-place heapsort and `search_extable()` by binary search, over absolute addresses; C's relative x86 encoding is a build-time layout that the kernel's linker produces |
 | `lib/stmp_device.c` | `lib/src/stmp_device.rs` | done | `stmp_reset_block()` over a `StmpRegs` trait for the register access and the 1 µs delay; the SET/CLR offsets and gate bits are the header's; ETIMEDOUT on a stuck poll |
 | `include/linux/stmp_device.h` | `lib/src/stmp_device.rs` | done | the offsets and bit masks |
