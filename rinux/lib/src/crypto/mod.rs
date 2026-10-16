@@ -20,4 +20,5 @@ pub mod mpi_sqr;
 pub mod mpi_sub_ui;
 pub mod nh;
 pub mod poly1305;
+pub mod sm3;
 pub mod utils;
