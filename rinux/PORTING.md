@@ -80,7 +80,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 41 | `lib/crypto/chacha*` and `include/crypto/chacha.h`: the RFC 7539 ChaCha block, stream and HChaCha functions, checked against the RFC vectors and split calls | done |
 | 42 | `lib/crypto/mpi/` limb helpers: `mpihelp_cmp()`, `mpihelp_add_n()` and `mpihelp_sub_n()`, checked against 128-bit arithmetic | done |
 | 43 | `lib/crypto/mpi/` shifts: `mpihelp_lshift()` and `mpihelp_rshift()`, checked against 128-bit shifts | done |
-| 44+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 44 | `lib/crypto/mpi/` multiply by one limb: `mpihelp_mul_1()`, `mpihelp_addmul_1()` and `mpihelp_submul_1()`, checked against limb-by-limb 128-bit arithmetic | done |
+| 45+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -612,6 +613,9 @@ or `test` (a C test file ported to Rust tests).
 | `lib/crypto/mpi/generic_mpih-sub1.c` | `lib/src/crypto/mpi.rs` | done | `mpihelp_sub_n()` with the two-step borrow, returning the borrow out |
 | `lib/crypto/mpi/generic_mpih-lshift.c` | `lib/src/crypto/mpi_shift.rs` | done | `mpihelp_lshift()`, returning the bits shifted out of the top limb |
 | `lib/crypto/mpi/generic_mpih-rshift.c` | `lib/src/crypto/mpi_shift.rs` | done | `mpihelp_rshift()`, returning the bits shifted out of the bottom limb |
+| `lib/crypto/mpi/generic_mpih-mul1.c` | `lib/src/crypto/mpi_mul.rs` | done | `mpihelp_mul_1()`, storing the product and returning the carry limb |
+| `lib/crypto/mpi/generic_mpih-mul2.c` | `lib/src/crypto/mpi_mul.rs` | done | `mpihelp_addmul_1()`, adding the product into `res` |
+| `lib/crypto/mpi/generic_mpih-mul3.c` | `lib/src/crypto/mpi_mul.rs` | done | `mpihelp_submul_1()`, subtracting the product from `res` |
 | `lib/errname.c` | `lib/src/errname.rs` | done | `errname()` returns an `ErrName` that writes the sign through `Display`; the MIPS-only `EDQUOT` entry is not ported |
 | `lib/argv_split.c` | `lib/src/argv_split.rs` | done | the word ranges as an iterator; the copied, NUL-terminated argv and `argv_free()` stay with the caller |
 | `lib/errseq.c` | `lib/src/errseq.rs` | done | `errseq_set()`, `errseq_sample()`, `errseq_check()` and `errseq_check_and_advance()` over an `AtomicU32`; the `WARN()` on a bad error becomes an ignored value |
