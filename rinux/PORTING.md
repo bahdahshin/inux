@@ -139,7 +139,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 102 | `lib/is_single_threaded.c`: `current_is_single_threaded()` over a slice of task records in list order, with the thread-group walk, the mm-sharing check and the kernel-thread skip; the RCU walk and `task_struct` are modelled by the caller | partial |
 | 103 | `lib/math/test_div64.c`: the 12 x 12 table of 64-by-32 quotients and remainders, run through `do_div()` and the generic `__div64_32()`; the constant-divisor path and the 1024-iteration timing loop are not ported | done |
 | 104 | `include/linux/bitfield.h`: the `FIELD_PREP`/`FIELD_GET`/`FIELD_MAX`/`FIELD_FIT`/`FIELD_MODIFY`/`FIELD_GET_SIGNED` helpers over a `Field` trait for `u8`..`u64`, `field_multiplier()`/`field_mask()`, and the generated `u8_encode_bits()` .. `be64_get_bits()` family (the `le`/`be` forms work on the stored representation); the compile-time mask and overflow checks become a bad-mask panic and run-time masking. `lib/tests/bitfield_kunit.c` ported in full | done |
-| 105+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 105 | `include/linux/compiler.h` (`is_signed_type()`) as the `IsSignedType` trait: the integer types, `bool`, `char` and raw pointers are implemented here, and user enums implement it themselves; `lib/tests/is_signed_type_kunit.c` ported in full | done |
+| 106+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -332,6 +333,8 @@ or `test` (a C test file ported to Rust tests).
 | `lib/math/test_div64.c` | `lib/tests/test_div64.rs` | test | the full 12 x 12 table through `do_div()` and `__div64_32()` |
 | `include/linux/bitfield.h` | `lib/src/bitfield.rs` | done | `FIELD_*` as generic functions over `Field`; compile-time checks become a panic on a bad mask |
 | `lib/tests/bitfield_kunit.c` | `lib/tests/bitfield_kunit.rs` | test | all `CHECK_ENC_GET` and `CHECK` cases, plus `FIELD_*`, `replace_bits` and the bad-mask panic |
+| `include/linux/compiler.h` (`is_signed_type`) | `lib/src/is_signed_type.rs` | done | trait over the integer, bool, char and raw-pointer types |
+| `lib/tests/is_signed_type_kunit.c` | `lib/tests/is_signed_type_kunit.rs` | test | the full C type table; the enums are modelled with matching `repr` |
 | `lib/test_ida.c` | `lib/tests/test_ida_test.rs` | test | the parts that fit a fixed bitmap; max-id, destroy and find_first wait for a growing IDA |
 | `lib/test_memcat_p.c` | `lib/tests/test_memcat_p_test.rs` | test | |
 | `lib/test_bitops.c` | `lib/tests/test_bitops_test.rs` | test | `fns()` timing loop not ported |

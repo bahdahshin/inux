@@ -58,6 +58,7 @@ pub mod interval_tree;
 pub mod iomap_copy;
 pub mod iomem_copy;
 pub mod iommu_helper;
+pub mod is_signed_type;
 pub mod is_single_threaded;
 pub mod kfifo;
 pub mod klist;
