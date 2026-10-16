@@ -137,7 +137,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 100 | `lib/test_memcat_p.c`: the KUnit-style check of `memcat_p()` ported in full: 127-element arrays, the total, the magic, the length, and the order; the arrays are slices, so no NULL terminator | done |
 | 101 | `lib/test_bitops.c`: the `get_count_order()` and `get_count_order_long()` tables and the set/clear round trip checked with `find_first_bit`; the `fns()` timing loop is a benchmark and is not ported | done |
 | 102 | `lib/is_single_threaded.c`: `current_is_single_threaded()` over a slice of task records in list order, with the thread-group walk, the mm-sharing check and the kernel-thread skip; the RCU walk and `task_struct` are modelled by the caller | partial |
-| 103+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 103 | `lib/math/test_div64.c`: the 12 x 12 table of 64-by-32 quotients and remainders, run through `do_div()` and the generic `__div64_32()`; the constant-divisor path and the 1024-iteration timing loop are not ported | done |
+| 104+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -327,6 +328,15 @@ or `test` (a C test file ported to Rust tests).
 | `lib/math/tests/int_sqrt_kunit.c` | `lib/tests/math_kunit.rs` | test | |
 | `lib/math/tests/rational_kunit.c` | `lib/tests/math_kunit.rs` | test | |
 | `lib/math/test_mul_u64_u64_div_u64.c` | `lib/src/math/div64.rs` | test | unit test, needs private variants |
+| `lib/math/test_div64.c` | `lib/tests/test_div64.rs` | test | the full 12 x 12 table through `do_div()` and `__div64_32()` |
+| `lib/test_ida.c` | `lib/tests/test_ida_test.rs` | test | the parts that fit a fixed bitmap; max-id, destroy and find_first wait for a growing IDA |
+| `lib/test_memcat_p.c` | `lib/tests/test_memcat_p_test.rs` | test | |
+| `lib/test_bitops.c` | `lib/tests/test_bitops_test.rs` | test | `fns()` timing loop not ported |
+| `lib/klist.c` | `lib/src/klist.rs` | partial | index-linked nodes; no blocking `klist_remove()` or get/put callbacks |
+| `include/linux/klist.h` | `lib/src/klist.rs` | partial | |
+| klist tests | `lib/tests/klist_test.rs` | test | ordering, deletion during iteration, deferred unlink |
+| `lib/is_single_threaded.c` | `lib/src/is_single_threaded.rs` | partial | the walk over caller-supplied task records; no RCU or `task_struct` |
+| is_single_threaded tests | `lib/tests/is_single_threaded_test.rs` | test | |
 | `lib/vsprintf.c` | `lib/src/vsprintf.rs` | partial | arguments are an `Arg` slice; `%p` for resources, ranges, `%pE`, dentries, time, clocks, block devices, flags, firmware nodes and sockaddrs pending; `kasprintf()` needs the allocator; `vbin_printf()`/`bstr_printf()` and the `hash_pointers` boot options pending |
 | `include/linux/sprintf.h` | `lib/src/vsprintf.rs` | partial | as `lib/vsprintf.c` |
 | `lib/cmdline.c` | `lib/src/cmdline.rs` | done | |
