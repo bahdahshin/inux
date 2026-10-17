@@ -165,6 +165,7 @@ pub fn start_kernel() -> ! {
     crate::rinux::selftest::check_i8042();
     crate::rinux::selftest::check_8250();
     crate::rinux::selftest::check_crypto();
+    crate::rinux::selftest::check_lib_hooks();
     crate::rinux::selftest::check_mm();
     crate::rinux::selftest::check_sched();
     crate::rinux::selftest::check_preempt();

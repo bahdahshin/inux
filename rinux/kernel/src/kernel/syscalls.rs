@@ -13,7 +13,9 @@
 //! helpers of `arch/x86/lib/` do more gracefully.
 
 use crate::arch::x86::include::ptrace::PtRegs;
+use crate::arch::x86::mm::user::UserSpace;
 use crate::include::linux::sched::current;
+use rinux_lib::uaccess::UserMemory;
 
 // x86-64 syscall numbers (`unistd_64.h`).
 const SYS_READ: u64 = 0;
@@ -385,6 +387,14 @@ fn sys_gettimeofday(tv: u64, _tz: u64) -> i64 {
 /// rounds the request up to whole jiffies and waits for the tick to reach the
 /// target (interrupts stay on, so `jiffies` advances). The optional remaining
 /// time is reported as zero, since the wait always completes in full here.
+/// The address space of the running task, for the checked user copies.
+///
+/// Only user tasks make syscalls, so the PGD is the task's own.
+fn current_user() -> UserSpace {
+    // SAFETY: current() is the running task, valid for the whole syscall.
+    UserSpace::new(unsafe { (*current()).mm_pgd })
+}
+
 fn sys_nanosleep(rqtp: u64, rmtp: u64) -> i64 {
     use crate::kernel::time::NSEC_PER_SEC;
     use crate::kernel::time::jiffies::{HZ, jiffies};
@@ -392,9 +402,13 @@ fn sys_nanosleep(rqtp: u64, rmtp: u64) -> i64 {
     if rqtp == 0 {
         return EINVAL;
     }
-    // SAFETY: syscall context; `rqtp` is a user `struct timespec` (tv_sec:i64
-    // at 0, tv_nsec:i64 at 8), read directly, and a bad pointer faults.
-    let ts = unsafe { copy_from_user(rqtp, 16) };
+    // The timespec (tv_sec:i64 at 0, tv_nsec:i64 at 8) is read through the
+    // checked copy, so a bad pointer is EFAULT and not a kernel page fault.
+    let mut user = current_user();
+    let mut ts = [0u8; 16];
+    if user.copy_from_user(&mut ts, rqtp as usize) != 0 {
+        return EFAULT;
+    }
     let sec = i64::from_le_bytes(ts[0..8].try_into().unwrap());
     let nsec = i64::from_le_bytes(ts[8..16].try_into().unwrap());
     if sec < 0 || !(0..NSEC_PER_SEC as i64).contains(&nsec) {
@@ -413,12 +427,8 @@ fn sys_nanosleep(rqtp: u64, rmtp: u64) -> i64 {
         crate::kernel::sched::core::sleep_until(deadline);
     }
 
-    if rmtp != 0 {
-        // SAFETY: syscall context; the remaining-time buffer is user memory.
-        unsafe {
-            write_user_le(rmtp, &0i64.to_le_bytes());
-            write_user_le(rmtp + 8, &0i64.to_le_bytes());
-        }
+    if rmtp != 0 && user.copy_to_user(rmtp as usize, &[0u8; 16]) != 0 {
+        return EFAULT;
     }
     0
 }

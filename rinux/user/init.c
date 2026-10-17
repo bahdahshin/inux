@@ -220,6 +220,11 @@ void _start(void)
 	put("init: slept, elapsed_us ");
 	putu((unsigned long)elapsed_us);
 
+	/* An unmapped timespec must come back as EFAULT, not fault the kernel. */
+	long nosleep_ret = syscall3(SYS_nanosleep, 0x10, 0, 0);
+	put(nosleep_ret == -14 ? "init: nanosleep bad pointer -> EFAULT\n"
+			       : "init: nanosleep bad pointer -> WRONG\n");
+
 	/* Ask the kernel for random bytes and report how many and their XOR. */
 	unsigned char rnd[16];
 	long got = syscall3(SYS_getrandom, (long)rnd, sizeof(rnd), 0);

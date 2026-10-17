@@ -1528,3 +1528,46 @@ pub fn check_crypto() {
         hex.as_str()
     );
 }
+
+/// The lib's `RandomSource` and printk hooks, driven by kernel code.
+///
+/// A UUID drawn from the kernel pool through `PoolRandom` must carry the
+/// version 4 and DCE variant bits. A hex dump sent through the kernel's line
+/// sink (`lib_line`) must arrive as one line with the expected text.
+pub fn check_lib_hooks() {
+    use rinux_lib::hexdump::{DumpOpts, DumpPrefix, print_hex_dump};
+    use rinux_lib::printk::LOGLEVEL_INFO;
+    use rinux_lib::uuid::generate_random_uuid_from;
+
+    use crate::drivers::char::random::PoolRandom;
+    use crate::kernel::printk::lib_line;
+
+    let mut uuid = [0u8; 16];
+    generate_random_uuid_from(&mut uuid, &mut PoolRandom);
+    if uuid[6] >> 4 == 4 && uuid[8] & 0xc0 == 0x80 {
+        pr_info!("rinux: random uuid: ok (version 4, DCE variant)");
+    } else {
+        pr_err!("rinux: random uuid: bad version or variant bits");
+    }
+
+    let opts = DumpOpts {
+        prefix_str: b"rinux-dump: ",
+        prefix_type: DumpPrefix::None,
+        rowsize: 16,
+        groupsize: 1,
+        base: 0,
+        ascii: false,
+    };
+    let mut lines = 0;
+    let mut matched = false;
+    print_hex_dump(LOGLEVEL_INFO, opts, b"abc", &mut |level, line| {
+        lines += 1;
+        matched = level == LOGLEVEL_INFO && line.starts_with(b"rinux-dump: 61 62 63");
+        lib_line(level, line);
+    });
+    if lines == 1 && matched {
+        pr_info!("rinux: printk sink: ok (hex dump of \"abc\" through lib_line)");
+    } else {
+        pr_err!("rinux: printk sink: hex dump lines {} matched {}", lines, matched);
+    }
+}
