@@ -71,8 +71,13 @@ if [ -z "$INITRAMFS" ]; then
 	# -mgeneral-regs-only: ring-3 init runs with no FPU/SSE state set up (the
 	# kernel is built soft-float), so the compiler must not auto-vectorise with
 	# SSE/MMX/x87 -- an XMM instruction would fault in user space.
+	# init is a static image linked at USER_LOAD_BASE, 16 TiB up, so its
+	# references must be 64-bit absolute: -fno-pic with the large code model.
+	# Distros that default to PIE would otherwise emit GOT-relative addresses
+	# that this static link cannot resolve.
 	"$CC" -c -nostdlib -ffreestanding -fno-builtin -fno-stack-protector \
-		-mgeneral-regs-only -O2 -o "$OBJ/init.o" "$RINUX/user/init.c"
+		-fno-pic -fno-pie -mcmodel=large -mgeneral-regs-only -O2 \
+		-o "$OBJ/init.o" "$RINUX/user/init.c"
 	"$LD" -nostdlib --build-id=none -T "$RINUX/user/init.ld" \
 		-o "$CPIO_DIR/init" "$OBJ/init.o"
 	chmod +x "$CPIO_DIR/init"
