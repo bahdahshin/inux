@@ -14,6 +14,7 @@
 //!
 //! Copyright (C) 1991-2002  Linus Torvalds
 
+use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, Ordering};
 
 use rinux_lib::list::{ListHead, iter, list_add_tail, list_del_init, list_entry};
@@ -169,10 +170,65 @@ impl TaskBlocker for RunqueueBlocker {
             if (*task).state.load(Ordering::Acquire) == TASK_INTERRUPTIBLE {
                 (*task).state.store(TASK_RUNNING, Ordering::Release);
                 enqueue_task(&mut rq, task);
+                // The idle loop reschedules on need_resched, so the woken task
+                // runs now rather than at the next tick.
+                set_need_resched();
             } else {
                 (*task).wakeup_pending = true;
             }
         }
+    }
+}
+
+/// A task asleep in [`sleep_until`]: the jiffy it wakes at, and its id.
+struct Sleeper {
+    deadline: u64,
+    id: usize,
+}
+
+/// The sleeping tasks. Entries are added in task context by `sleep_until()`
+/// and drained by the tick, which takes the lock with interrupts off.
+static SLEEPERS: SpinLock<Vec<Sleeper>> = SpinLock::new(Vec::new());
+
+/// How many expired sleepers one tick wakes. Any left over wake on a later
+/// tick, so the tick's work stays bounded.
+const WAKES_PER_TICK: usize = 32;
+
+/// The sleep half of `schedule_timeout()`: blocks the running task until
+/// jiffies reaches `deadline`. The timer tick wakes it ([`wake_sleepers`]).
+///
+/// The task sleeps in [`RunqueueBlocker::block`], so other tasks run in the
+/// meantime; the idle task runs when there is nothing else to do.
+pub fn sleep_until(deadline: u64) {
+    let me = current() as usize;
+    SLEEPERS.lock_irqsave().push(Sleeper { deadline, id: me });
+    while crate::kernel::time::jiffies::jiffies() < deadline {
+        RunqueueBlocker.block(me);
+    }
+    // A wake from the tick has already removed the entry; this covers a
+    // return without one.
+    SLEEPERS.lock_irqsave().retain(|s| s.id != me);
+}
+
+/// Wakes the sleepers whose deadline has passed. Called from the tick.
+fn wake_sleepers(now: u64) {
+    let mut due = [0usize; WAKES_PER_TICK];
+    let mut n = 0;
+    {
+        let mut sleepers = SLEEPERS.lock_irqsave();
+        let mut i = 0;
+        while i < sleepers.len() && n < WAKES_PER_TICK {
+            if sleepers[i].deadline <= now {
+                due[n] = sleepers.swap_remove(i).id;
+                n += 1;
+            } else {
+                i += 1;
+            }
+        }
+    }
+    // Wake outside the sleeper lock: wake() takes the runqueue lock.
+    for &id in &due[..n] {
+        RunqueueBlocker.wake(id);
     }
 }
 
@@ -324,6 +380,7 @@ pub fn preempt_on_irq_return() {
 /// `sched_tick()`: charge the running task one tick and preempt it at the
 /// end of its slice.
 pub fn scheduler_tick() {
+    wake_sleepers(crate::kernel::time::jiffies::jiffies());
     let curr = current();
     // SAFETY: curr is the running task.
     unsafe {

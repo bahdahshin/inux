@@ -410,11 +410,7 @@ fn sys_nanosleep(rqtp: u64, rmtp: u64) -> i64 {
     // them so the timer tick advances, waiting with `hlt` between ticks, then
     // restore the interrupts-off state the entry runs in.
     if jiffies() < deadline {
-        use crate::arch::x86::include::irqflags::{local_irq_disable, native_safe_halt};
-        while jiffies() < deadline {
-            native_safe_halt();
-        }
-        local_irq_disable();
+        crate::kernel::sched::core::sleep_until(deadline);
     }
 
     if rmtp != 0 {

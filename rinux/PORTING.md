@@ -170,7 +170,8 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 133 | kernel wiring of the lib hooks: `PoolRandom` in `drivers/char/random.rs` implements `RandomSource` over the locked pool, and `lib_line()` in `kernel/printk.rs` is the line sink for the lib's printing functions, emitting through `vprintk_emit()` with the newline added; the kernel crate builds for `x86_64-unknown-none`. Nothing in the kernel calls these yet, and the kernel's test harness is off, so this is verified by the build only | done |
 | 134 | kernel wiring of `UserMemory`: `UserSpace` in `arch/x86/mm/user.rs` copies to and from a task's user pages by walking its page tables one page at a time. Each page is checked for present, user and, for writes, writable bits before the frame is touched, so a bad user pointer gives a short copy and never a kernel page fault; the lower-half limit is enforced. Nothing calls it yet, and the kernel's test harness is off, so this is verified by the build only | done |
 | 135 | kernel wiring of `TaskBlocker`: `RunqueueBlocker` in `kernel/sched/core.rs` puts the running task to sleep (`block()` sets it interruptible, dequeues it and schedules) and makes a sleeper runnable again (`wake()` enqueues it). A wake that arrives before the sleep is kept as `wakeup_pending` on the task, so the block that follows returns at once, which closes the lost-wakeup window. The task's id is its `TaskStruct` address. Nothing calls it yet, and the kernel's test harness is off, so this is verified by the build only | done |
-| 136+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
+| 136 | kernel `nanosleep` now sleeps the task: `sleep_until()` puts it in a sleep table and blocks it with `RunqueueBlocker`, and the tick (`wake_sleepers()`) wakes each task whose deadline has passed, at most 32 per tick. `wake()` also sets `need_resched`, so a woken task runs at once. Verified in QEMU: the init program's 150 ms nanosleep measures 150000 µs with the other self-tests passing | done |
+| 137+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
 
@@ -509,7 +510,7 @@ or `test` (a C test file ported to Rust tests).
 | `kernel/time/time.c` | `lib/src/mktime.rs` | partial | `mktime64()` (host-tested); `sys_gettimeofday` (`struct timeval` from `ktime_get_real_ts64`) is in `kernel/src/kernel/syscalls.rs` |
 | `kernel/time/timekeeping.c` | `kernel/src/kernel/time/timekeeping.rs` | partial | boot wall-clock anchor from the RTC; `timekeeping_init()`, `ktime_get_real_ts64()` over jiffies |
 | `kernel/time/posix-timers.c` | `kernel/src/kernel/syscalls.rs` | partial | `sys_clock_gettime` for `CLOCK_REALTIME`/`CLOCK_MONOTONIC` |
-| `kernel/time/hrtimer.c` | `kernel/src/kernel/syscalls.rs` | partial | `sys_nanosleep`: round up to whole jiffies and wait with interrupts enabled (`hlt` between ticks); no `hrtimer` arming or scheduling out |
+| `kernel/time/hrtimer.c` | `kernel/src/kernel/syscalls.rs` | partial | `sys_nanosleep`: round up to whole jiffies, then sleep the task (`sleep_until()`), which the tick wakes at its deadline so other tasks run meanwhile; no `hrtimer` arming, so the wake is tick-granular |
 | `include/uapi/linux/time.h` | `kernel/src/kernel/syscalls.rs` | partial | `CLOCK_REALTIME`, `CLOCK_MONOTONIC`, `struct timespec`/`timeval` layout |
 | `kernel/sched/clock.c` | `kernel/src/kernel/sched/clock.rs` | partial | `local_clock()` for one CPU with a stable clock |
 | `include/linux/list.h` | `lib/src/list.rs` | partial | intrusive list: add/del, del_init, iteration; hlist and RCU variants pending |
