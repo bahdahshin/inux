@@ -1137,6 +1137,855 @@ pub fn find_string_len(strtab: &[u8], s: &[u8]) -> Option<usize> {
     (0..=last).find(|&p| strtab[p..p + slen] == *s && strtab[p + slen] == 0)
 }
 
+/// `FDT_LAST_COMPATIBLE_VERSION`: the version a finished sequential-write tree
+/// is marked compatible with.
+const FDT_LAST_COMPATIBLE_VERSION: usize = 0x10;
+/// `FDT_MAX_NCELLS`: the largest `#address-cells` or `#size-cells`.
+const FDT_MAX_NCELLS: u32 = 4;
+/// `FDT_CREATE_FLAG_NO_NAME_DEDUP`: do not reuse an existing property name.
+pub const FDT_CREATE_FLAG_NO_NAME_DEDUP: u32 = 0x1;
+/// `FDT_ALIGN(sizeof(struct fdt_header), sizeof(struct fdt_reserve_entry))`:
+/// where the first reservation sits in a new tree.
+const HDR_SIZE_ALIGNED: usize = 48;
+const H_BOOT_CPUID: usize = 28;
+
+impl<'a> Fdt<'a> {
+    /// `fdt_boot_cpuid_phys()`.
+    pub fn boot_cpuid_phys(&self) -> u32 {
+        hdr(self.buf, H_BOOT_CPUID)
+    }
+
+    /// `fdt_blocks_misordered_()`: whether the blocks are out of the order the
+    /// writers expect (reservations, then structure, then strings, all inside).
+    fn blocks_misordered(&self, mem_rsv_size: usize, struct_size: usize) -> bool {
+        let off_mem = self.off_mem_rsvmap();
+        let off_struct = self.off_dt_struct();
+        let off_strings = self.off_dt_strings();
+        off_mem < FDT_V17_SIZE
+            || off_struct < off_mem + mem_rsv_size
+            || off_strings < off_struct + struct_size
+            || self.buf.len() < off_strings + self.size_dt_strings()
+    }
+
+    /// `fdt_node_end_offset_()`: the offset just past a node's END_NODE tag.
+    fn node_end_offset(&self, node: usize) -> Result<usize, FdtError> {
+        let mut depth = 0;
+        let mut offset = node;
+        loop {
+            if depth < 0 {
+                return Ok(offset);
+            }
+            offset = self.next_node(Some(offset), Some(&mut depth))?;
+        }
+    }
+
+    /// `fdt_cells()`: a `#...-cells` property, which must be one 32-bit value
+    /// no larger than [`FDT_MAX_NCELLS`].
+    fn cells(&self, node: usize, name: &[u8]) -> Result<u32, FdtError> {
+        let c = self.getprop(node, name)?;
+        if c.len() != 4 {
+            return Err(FdtError::BadNcells);
+        }
+        let val = be32(c, 0).ok_or(FdtError::BadNcells)?;
+        if val > FDT_MAX_NCELLS {
+            return Err(FdtError::BadNcells);
+        }
+        Ok(val)
+    }
+
+    /// `fdt_address_cells()`: the `#address-cells` of a node, defaulting to 2.
+    pub fn address_cells(&self, node: usize) -> Result<u32, FdtError> {
+        match self.cells(node, b"#address-cells") {
+            Ok(0) => Err(FdtError::BadNcells),
+            Ok(val) => Ok(val),
+            Err(FdtError::NotFound) => Ok(2),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// `fdt_size_cells()`: the `#size-cells` of a node, defaulting to 1.
+    pub fn size_cells(&self, node: usize) -> Result<u32, FdtError> {
+        match self.cells(node, b"#size-cells") {
+            Ok(val) => Ok(val),
+            Err(FdtError::NotFound) => Ok(1),
+            Err(e) => Err(e),
+        }
+    }
+}
+
+/// Write `bytes` at `off`, failing if they do not fit the buffer.
+fn put(buf: &mut [u8], off: usize, bytes: &[u8]) -> Result<(), FdtError> {
+    buf.get_mut(off..off.checked_add(bytes.len()).ok_or(FdtError::Internal)?)
+        .ok_or(FdtError::Internal)?
+        .copy_from_slice(bytes);
+    Ok(())
+}
+
+/// Zero `len` bytes at `off`.
+fn zero(buf: &mut [u8], off: usize, len: usize) -> Result<(), FdtError> {
+    buf.get_mut(off..off.checked_add(len).ok_or(FdtError::Internal)?)
+        .ok_or(FdtError::Internal)?
+        .fill(0);
+    Ok(())
+}
+
+/// Zero the padding after `len` value bytes at `off`, up to a 4-byte boundary.
+fn zero_pad(buf: &mut [u8], off: usize, len: usize) -> Result<(), FdtError> {
+    zero(buf, off + len, align4(len) - len)
+}
+
+/// Set a header field (`fdt_set_*()`).
+fn set_hdr(buf: &mut [u8], field: usize, v: usize) -> Result<(), FdtError> {
+    put(buf, field, &(v as u32).to_be_bytes())
+}
+
+/// Move a header field by `delta` bytes.
+fn shift_hdr(buf: &mut [u8], field: usize, delta: i64) -> Result<(), FdtError> {
+    let v = hdr(buf, field) as i64 + delta;
+    if v < 0 {
+        return Err(FdtError::Internal);
+    }
+    set_hdr(buf, field, v as usize)
+}
+
+fn align4(x: usize) -> usize {
+    (x + 3) & !3
+}
+
+/// `fdt_splice_()`: open a gap of `newlen` bytes at `pos`, after removing
+/// `oldlen` bytes there. Everything from `pos + oldlen` to the end of the data
+/// block moves. The new bytes are not written.
+fn splice(buf: &mut [u8], pos: usize, oldlen: usize, newlen: usize) -> Result<(), FdtError> {
+    let totalsize = hdr(buf, H_TOTALSIZE) as usize;
+    let dsize = hdr(buf, H_OFF_DT_STRINGS) as usize + hdr(buf, H_SIZE_DT_STRINGS) as usize;
+    if totalsize > buf.len() || dsize > totalsize {
+        return Err(FdtError::Truncated);
+    }
+    if pos + oldlen > dsize {
+        return Err(FdtError::BadOffset);
+    }
+    if dsize - oldlen + newlen > totalsize {
+        return Err(FdtError::NoSpace);
+    }
+    buf.copy_within(pos + oldlen..dsize, pos + newlen);
+    Ok(())
+}
+
+/// `fdt_splice_mem_rsv_()`: splice the reservation map and move the blocks
+/// after it.
+fn splice_mem_rsv(buf: &mut [u8], pos: usize, oldn: usize, newn: usize) -> Result<(), FdtError> {
+    let delta = (newn as i64 - oldn as i64) * RSV_ENTRY as i64;
+    splice(buf, pos, oldn * RSV_ENTRY, newn * RSV_ENTRY)?;
+    shift_hdr(buf, H_OFF_DT_STRUCT, delta)?;
+    shift_hdr(buf, H_OFF_DT_STRINGS, delta)
+}
+
+/// `fdt_splice_struct_()`: splice the structure block and move the strings.
+fn splice_struct(buf: &mut [u8], pos: usize, oldlen: usize, newlen: usize) -> Result<(), FdtError> {
+    let delta = newlen as i64 - oldlen as i64;
+    splice(buf, pos, oldlen, newlen)?;
+    shift_hdr(buf, H_SIZE_DT_STRUCT, delta)?;
+    shift_hdr(buf, H_OFF_DT_STRINGS, delta)
+}
+
+/// `fdt_splice_string_()`: grow the strings block at its end.
+fn splice_string(buf: &mut [u8], newlen: usize) -> Result<(), FdtError> {
+    let p = hdr(buf, H_OFF_DT_STRINGS) as usize + hdr(buf, H_SIZE_DT_STRINGS) as usize;
+    splice(buf, p, 0, newlen)?;
+    shift_hdr(buf, H_SIZE_DT_STRINGS, newlen as i64)
+}
+
+/// `fdt_del_last_string_()`: undo a string added in the same operation.
+fn del_last_string(buf: &mut [u8], len: usize) -> Result<(), FdtError> {
+    shift_hdr(buf, H_SIZE_DT_STRINGS, -(len as i64))
+}
+
+/// `fdt_find_add_string_()`: the strings-block offset of `s`, adding it at the
+/// end if it is not there. The flag says whether it was added.
+fn find_add_string(buf: &mut [u8], s: &[u8]) -> Result<(usize, bool), FdtError> {
+    let off = hdr(buf, H_OFF_DT_STRINGS) as usize;
+    let size = hdr(buf, H_SIZE_DT_STRINGS) as usize;
+    if let Some(i) = find_string_len(buf.get(off..off + size).ok_or(FdtError::Truncated)?, s) {
+        return Ok((i, false));
+    }
+    splice_string(buf, s.len() + 1)?;
+    put(buf, off + size, s)?;
+    put(buf, off + size + s.len(), &[0])?;
+    Ok((size, true))
+}
+
+/// `nop_region_()`: overwrite a region with NOP tags, one per 4 bytes.
+fn nop_region(buf: &mut [u8], start: usize, len: usize) -> Result<(), FdtError> {
+    let mut i = 0;
+    while i < len {
+        put(buf, start + i, &FDT_NOP.to_be_bytes())?;
+        i += FDT_TAGSIZE;
+    }
+    Ok(())
+}
+
+/// Copy `len` bytes of `src` to `dst` (`copy_block`).
+fn copy_block(dst: &mut [u8], dst_off: usize, src: &[u8], src_off: usize, len: usize) -> Result<(), FdtError> {
+    let s = src
+        .get(src_off..src_off.checked_add(len).ok_or(FdtError::Truncated)?)
+        .ok_or(FdtError::Truncated)?;
+    put(dst, dst_off, s)
+}
+
+/// `fdt_packblocks_()` on one buffer: move the three blocks, in order, to the
+/// packed layout. Each move is a `memmove`, so the blocks may overlap.
+fn pack_blocks_in_place(
+    buf: &mut [u8],
+    old: [usize; 3],
+    sizes: [usize; 3],
+) -> Result<(), FdtError> {
+    let [old_mem, old_struct, old_strings] = old;
+    let [mem_size, struct_size, strings_size] = sizes;
+    let mem_off = FDT_V17_SIZE;
+    let struct_off = mem_off + mem_size;
+    let strings_off = struct_off + struct_size;
+    if strings_off + strings_size > buf.len() {
+        return Err(FdtError::NoSpace);
+    }
+    buf.copy_within(old_mem..old_mem + mem_size, mem_off);
+    set_hdr(buf, H_OFF_MEM_RSVMAP, mem_off)?;
+    buf.copy_within(old_struct..old_struct + struct_size, struct_off);
+    set_hdr(buf, H_OFF_DT_STRUCT, struct_off)?;
+    set_hdr(buf, H_SIZE_DT_STRUCT, struct_size)?;
+    buf.copy_within(old_strings..old_strings + strings_size, strings_off);
+    set_hdr(buf, H_OFF_DT_STRINGS, strings_off)?;
+    set_hdr(buf, H_SIZE_DT_STRINGS, strings_size)
+}
+
+/// `fdt_open_into()`: copy a finished tree into `dst`, packing the blocks if
+/// they are out of order. `src` and `dst` are separate buffers here, so the C
+/// in-place form is `open_into` into a second buffer.
+pub fn open_into(src: &[u8], dst: &mut [u8]) -> Result<(), FdtError> {
+    let v = Fdt::new(src)?;
+    let mem_rsv_size = (v.num_mem_rsv()? + 1) * RSV_ENTRY;
+    let struct_size = match v.version() {
+        ver if ver >= 17 => v.size_dt_struct(),
+        16 => {
+            let mut off = 0;
+            loop {
+                let (tok, next) = v.next_tag(off)?;
+                off = next;
+                if tok == Token::End {
+                    break;
+                }
+            }
+            off
+        }
+        _ => return Err(FdtError::BadVersion),
+    };
+
+    if !v.blocks_misordered(mem_rsv_size, struct_size) {
+        v.move_to(dst)?;
+        set_hdr(dst, H_VERSION, 17)?;
+        set_hdr(dst, H_SIZE_DT_STRUCT, struct_size)?;
+        set_hdr(dst, H_TOTALSIZE, dst.len())?;
+        return Ok(());
+    }
+
+    let strings_size = v.size_dt_strings();
+    let newsize = FDT_V17_SIZE + mem_rsv_size + struct_size + strings_size;
+    if dst.len() < newsize {
+        return Err(FdtError::NoSpace);
+    }
+    let mem_off = FDT_V17_SIZE;
+    let struct_off = mem_off + mem_rsv_size;
+    let strings_off = struct_off + struct_size;
+    copy_block(dst, mem_off, src, v.off_mem_rsvmap(), mem_rsv_size)?;
+    copy_block(dst, struct_off, src, v.off_dt_struct(), struct_size)?;
+    copy_block(dst, strings_off, src, v.off_dt_strings(), strings_size)?;
+    let len = dst.len();
+    set_hdr(dst, H_MAGIC, FDT_MAGIC as usize)?;
+    set_hdr(dst, H_TOTALSIZE, len)?;
+    set_hdr(dst, H_VERSION, 17)?;
+    set_hdr(dst, H_LAST_COMP, FDT_LAST_COMPATIBLE_VERSION)?;
+    put(dst, H_BOOT_CPUID, &v.boot_cpuid_phys().to_be_bytes())?;
+    set_hdr(dst, H_OFF_MEM_RSVMAP, mem_off)?;
+    set_hdr(dst, H_OFF_DT_STRUCT, struct_off)?;
+    set_hdr(dst, H_SIZE_DT_STRUCT, struct_size)?;
+    set_hdr(dst, H_OFF_DT_STRINGS, strings_off)?;
+    set_hdr(dst, H_SIZE_DT_STRINGS, strings_size)
+}
+
+/// A finished device tree being edited in place: `fdt_*()` in `fdt_rw.c` and
+/// `fdt_wip.c`. Every edit keeps the blocks in order and the header current.
+#[derive(Debug)]
+pub struct FdtMut<'a> {
+    buf: &'a mut [u8],
+}
+
+impl<'a> FdtMut<'a> {
+    /// `FDT_RW_PROBE()`: check that the tree is version 17 or later, with its
+    /// blocks in order, and downgrade a version newer than this code knows.
+    pub fn open(buf: &'a mut [u8]) -> Result<Self, FdtError> {
+        let totalsize = ro_probe(buf)?;
+        if totalsize < FDT_V17_SIZE || totalsize > buf.len() {
+            return Err(FdtError::Truncated);
+        }
+        {
+            let v = Fdt { buf: &buf[..totalsize] };
+            if v.version() < 17 {
+                return Err(FdtError::BadVersion);
+            }
+            if v.blocks_misordered(RSV_ENTRY, v.size_dt_struct()) {
+                return Err(FdtError::BadLayout);
+            }
+        }
+        if hdr(buf, H_VERSION) as usize > FDT_LAST_SUPPORTED_VERSION as usize {
+            set_hdr(buf, H_VERSION, FDT_LAST_SUPPORTED_VERSION as usize)?;
+        }
+        Ok(Self { buf })
+    }
+
+    /// The read-only view of the tree being edited.
+    pub fn as_fdt(&self) -> Fdt<'_> {
+        self.view()
+    }
+
+    fn view(&self) -> Fdt<'_> {
+        let totalsize = hdr(self.buf, H_TOTALSIZE) as usize;
+        Fdt { buf: &self.buf[..totalsize] }
+    }
+
+    /// The structure-block offset of a property and its value length.
+    fn prop_info(&self, node: usize, name: &[u8]) -> Result<(usize, usize), FdtError> {
+        let v = self.view();
+        let (poff, prop) = v.find_property(node, name)?;
+        Ok((poff, prop.data.len()))
+    }
+
+    /// `fdt_add_mem_rsv()`: add a reservation at the end of the list.
+    pub fn add_mem_rsv(&mut self, address: u64, size: u64) -> Result<(), FdtError> {
+        let (n, off) = {
+            let v = self.view();
+            (v.num_mem_rsv()?, v.off_mem_rsvmap())
+        };
+        let pos = off + n * RSV_ENTRY;
+        splice_mem_rsv(self.buf, pos, 0, 1)?;
+        put(self.buf, pos, &address.to_be_bytes())?;
+        put(self.buf, pos + 8, &size.to_be_bytes())
+    }
+
+    /// `fdt_del_mem_rsv()`: remove the `n`th reservation.
+    pub fn del_mem_rsv(&mut self, n: usize) -> Result<(), FdtError> {
+        let (num, off) = {
+            let v = self.view();
+            (v.num_mem_rsv()?, v.off_mem_rsvmap())
+        };
+        if n >= num {
+            return Err(FdtError::NotFound);
+        }
+        splice_mem_rsv(self.buf, off + n * RSV_ENTRY, 1, 0)
+    }
+
+    /// `fdt_set_name()`.
+    pub fn set_name(&mut self, node: usize, name: &[u8]) -> Result<(), FdtError> {
+        let (oldlen, struct_off) = {
+            let v = self.view();
+            (v.get_name(node)?.len(), v.off_dt_struct())
+        };
+        let namepos = struct_off + node + FDT_TAGSIZE;
+        splice_struct(self.buf, namepos, align4(oldlen + 1), align4(name.len() + 1))?;
+        put(self.buf, namepos, name)?;
+        zero(self.buf, namepos + name.len(), align4(name.len() + 1) - name.len())
+    }
+
+    /// `fdt_resize_property_()`: a property that exists gets a new length, and
+    /// its data offset in the buffer comes back.
+    fn resize_property(&mut self, node: usize, name: &[u8], len: usize) -> Result<usize, FdtError> {
+        let (poff, oldlen) = self.prop_info(node, name)?;
+        let struct_off = self.view().off_dt_struct();
+        let data = struct_off + poff + PROP_HEADER;
+        splice_struct(self.buf, data, align4(oldlen), align4(len))?;
+        put(self.buf, data - 8, &(len as u32).to_be_bytes())?;
+        zero_pad(self.buf, data, len)?;
+        Ok(data)
+    }
+
+    /// `fdt_add_property_()`: a new property at the end of a node's
+    /// properties, with its value zeroed, and the data offset comes back.
+    fn add_property(&mut self, node: usize, name: &[u8], len: usize) -> Result<usize, FdtError> {
+        let next = self.view().check_node_offset(node)?;
+        let (namestroff, allocated) = find_add_string(self.buf, name)?;
+        let struct_off = self.view().off_dt_struct();
+        let pos = struct_off + next;
+        let proplen = PROP_HEADER + align4(len);
+        if let Err(e) = splice_struct(self.buf, pos, 0, proplen) {
+            if allocated {
+                del_last_string(self.buf, name.len() + 1)?;
+            }
+            return Err(e);
+        }
+        zero(self.buf, pos, proplen)?;
+        put(self.buf, pos, &FDT_PROP.to_be_bytes())?;
+        put(self.buf, pos + 4, &(len as u32).to_be_bytes())?;
+        put(self.buf, pos + 8, &(namestroff as u32).to_be_bytes())?;
+        Ok(pos + PROP_HEADER)
+    }
+
+    /// `fdt_setprop_placeholder()`: the value of a property, sized to `len`
+    /// bytes and ready to be written. The bytes are zero.
+    pub fn setprop_placeholder(&mut self, node: usize, name: &[u8], len: usize) -> Result<&mut [u8], FdtError> {
+        let pos = match self.resize_property(node, name, len) {
+            Err(FdtError::NotFound) => self.add_property(node, name, len)?,
+            r => r?,
+        };
+        Ok(&mut self.buf[pos..pos + len])
+    }
+
+    /// `fdt_setprop()`.
+    pub fn setprop(&mut self, node: usize, name: &[u8], val: &[u8]) -> Result<(), FdtError> {
+        self.setprop_placeholder(node, name, val.len())?.copy_from_slice(val);
+        Ok(())
+    }
+
+    /// `fdt_setprop_inplace_namelen_partial()`: overwrite part of a value that
+    /// is already long enough, without resizing.
+    pub fn setprop_inplace_partial(&mut self, node: usize, name: &[u8], idx: usize, val: &[u8]) -> Result<(), FdtError> {
+        let (poff, proplen) = self.prop_info(node, name)?;
+        if proplen < val.len() + idx {
+            return Err(FdtError::NoSpace);
+        }
+        let struct_off = self.view().off_dt_struct();
+        put(self.buf, struct_off + poff + PROP_HEADER + idx, val)
+    }
+
+    /// `fdt_setprop_inplace()`: overwrite a value of exactly the same length.
+    pub fn setprop_inplace(&mut self, node: usize, name: &[u8], val: &[u8]) -> Result<(), FdtError> {
+        let (_, proplen) = self.prop_info(node, name)?;
+        if proplen != val.len() {
+            return Err(FdtError::NoSpace);
+        }
+        self.setprop_inplace_partial(node, name, 0, val)
+    }
+
+    /// `fdt_appendprop()`: add bytes to the end of a value, creating the
+    /// property if it is not there.
+    pub fn appendprop(&mut self, node: usize, name: &[u8], val: &[u8]) -> Result<(), FdtError> {
+        match self.prop_info(node, name) {
+            Ok((poff, oldlen)) => {
+                let newlen = oldlen + val.len();
+                let struct_off = self.view().off_dt_struct();
+                let data = struct_off + poff + PROP_HEADER;
+                splice_struct(self.buf, data, align4(oldlen), align4(newlen))?;
+                put(self.buf, data - 8, &(newlen as u32).to_be_bytes())?;
+                put(self.buf, data + oldlen, val)?;
+                zero_pad(self.buf, data, newlen)
+            }
+            Err(_) => {
+                let pos = self.add_property(node, name, val.len())?;
+                put(self.buf, pos, val)
+            }
+        }
+    }
+
+    /// `fdt_appendprop_addrrange()`: append an address and a size as cells,
+    /// using the parent's `#address-cells` and `#size-cells`.
+    pub fn appendprop_addrrange(
+        &mut self,
+        parent: usize,
+        node: usize,
+        name: &[u8],
+        addr: u64,
+        size: u64,
+    ) -> Result<(), FdtError> {
+        let (addr_cells, size_cells) = {
+            let v = self.view();
+            (v.address_cells(parent)?, v.size_cells(parent)?)
+        };
+        let mut data = [0u8; 16];
+        match addr_cells {
+            1 => {
+                if addr > u32::MAX as u64 || (u32::MAX as u64 + 1 - addr) < size {
+                    return Err(FdtError::BadValue);
+                }
+                data[..4].copy_from_slice(&(addr as u32).to_be_bytes());
+            }
+            2 => data[..8].copy_from_slice(&addr.to_be_bytes()),
+            _ => return Err(FdtError::BadNcells),
+        }
+        let p = addr_cells as usize * 4;
+        match size_cells {
+            1 => {
+                if size > u32::MAX as u64 {
+                    return Err(FdtError::BadValue);
+                }
+                data[p..p + 4].copy_from_slice(&(size as u32).to_be_bytes());
+            }
+            2 => data[p..p + 8].copy_from_slice(&size.to_be_bytes()),
+            _ => return Err(FdtError::BadNcells),
+        }
+        let n = (addr_cells + size_cells) as usize * 4;
+        self.appendprop(node, name, &data[..n])
+    }
+
+    /// `fdt_delprop()`.
+    pub fn delprop(&mut self, node: usize, name: &[u8]) -> Result<(), FdtError> {
+        let (poff, len) = self.prop_info(node, name)?;
+        let struct_off = self.view().off_dt_struct();
+        splice_struct(self.buf, struct_off + poff, PROP_HEADER + align4(len), 0)
+    }
+
+    /// `fdt_add_subnode()`: a new child, placed after the parent's properties
+    /// and before its other children. Returns the new node's offset.
+    pub fn add_subnode(&mut self, parent: usize, name: &[u8]) -> Result<usize, FdtError> {
+        let (offset, nodelen) = {
+            let v = self.view();
+            match v.subnode_offset(parent, name) {
+                Ok(_) => return Err(FdtError::Exists),
+                Err(FdtError::NotFound) => {}
+                Err(e) => return Err(e),
+            }
+            let (tok, after) = v.next_tag(parent)?;
+            if tok != Token::BeginNode {
+                return Err(FdtError::Internal);
+            }
+            let mut offset = after;
+            loop {
+                let (t, next) = v.next_tag(offset)?;
+                if t != Token::Prop && t != Token::Nop {
+                    break;
+                }
+                offset = next;
+            }
+            (offset, FDT_TAGSIZE + align4(name.len() + 1) + FDT_TAGSIZE)
+        };
+        let pos = self.view().off_dt_struct() + offset;
+        splice_struct(self.buf, pos, 0, nodelen)?;
+        zero(self.buf, pos, nodelen)?;
+        put(self.buf, pos, &FDT_BEGIN_NODE.to_be_bytes())?;
+        put(self.buf, pos + FDT_TAGSIZE, name)?;
+        put(self.buf, pos + nodelen - FDT_TAGSIZE, &FDT_END_NODE.to_be_bytes())?;
+        Ok(offset)
+    }
+
+    /// `fdt_del_node()`.
+    pub fn del_node(&mut self, node: usize) -> Result<(), FdtError> {
+        let (struct_off, end) = {
+            let v = self.view();
+            (v.off_dt_struct(), v.node_end_offset(node)?)
+        };
+        splice_struct(self.buf, struct_off + node, end - node, 0)
+    }
+
+    /// `fdt_nop_property()`: turn a property into NOP tags.
+    pub fn nop_property(&mut self, node: usize, name: &[u8]) -> Result<(), FdtError> {
+        let (poff, len) = self.prop_info(node, name)?;
+        let struct_off = self.view().off_dt_struct();
+        nop_region(self.buf, struct_off + poff, PROP_HEADER + len)
+    }
+
+    /// `fdt_nop_node()`: turn a node and its children into NOP tags.
+    pub fn nop_node(&mut self, node: usize) -> Result<(), FdtError> {
+        let (struct_off, end) = {
+            let v = self.view();
+            (v.off_dt_struct(), v.node_end_offset(node)?)
+        };
+        nop_region(self.buf, struct_off + node, end - node)
+    }
+
+    /// `fdt_pack()`: remove the free space between blocks, and shrink the
+    /// header's `totalsize` to the data.
+    pub fn pack(&mut self) -> Result<(), FdtError> {
+        let (num, old_mem, struct_size, strings_size, old_struct, old_strings) = {
+            let v = self.view();
+            (
+                v.num_mem_rsv()?,
+                v.off_mem_rsvmap(),
+                v.size_dt_struct(),
+                v.size_dt_strings(),
+                v.off_dt_struct(),
+                v.off_dt_strings(),
+            )
+        };
+        let mem_rsv_size = (num + 1) * RSV_ENTRY;
+        pack_blocks_in_place(
+            self.buf,
+            [old_mem, old_struct, old_strings],
+            [mem_rsv_size, struct_size, strings_size],
+        )?;
+        let total = hdr(self.buf, H_OFF_DT_STRINGS) as usize + strings_size;
+        set_hdr(self.buf, H_TOTALSIZE, total)
+    }
+}
+
+/// A device tree being built in order: `fdt_*()` in `fdt_sw.c`. The reservation
+/// map is written first, then the structure, then the strings are moved to
+/// the end by [`FdtSw::finish`].
+#[derive(Debug)]
+pub struct FdtSw<'a> {
+    buf: &'a mut [u8],
+}
+
+impl<'a> FdtSw<'a> {
+    /// `fdt_create_with_flags()`: start an empty tree in `buf`, which is zeroed.
+    pub fn create(buf: &'a mut [u8], flags: u32) -> Result<Self, FdtError> {
+        if buf.len() < HDR_SIZE_ALIGNED {
+            return Err(FdtError::NoSpace);
+        }
+        if flags & !FDT_CREATE_FLAG_NO_NAME_DEDUP != 0 {
+            return Err(FdtError::BadFlags);
+        }
+        buf.fill(0);
+        let total = buf.len();
+        set_hdr(buf, H_MAGIC, FDT_SW_MAGIC as usize)?;
+        set_hdr(buf, H_VERSION, FDT_LAST_SUPPORTED_VERSION as usize)?;
+        set_hdr(buf, H_LAST_COMP, flags as usize)?;
+        set_hdr(buf, H_TOTALSIZE, total)?;
+        set_hdr(buf, H_OFF_MEM_RSVMAP, HDR_SIZE_ALIGNED)?;
+        set_hdr(buf, H_OFF_DT_STRUCT, HDR_SIZE_ALIGNED)?;
+        set_hdr(buf, H_OFF_DT_STRINGS, 0)?;
+        Ok(Self { buf })
+    }
+
+    /// Continue a tree that [`FdtSw::create`] started. Only the magic is checked.
+    pub fn open(buf: &'a mut [u8]) -> Result<Self, FdtError> {
+        if buf.len() < FDT_V17_SIZE {
+            return Err(FdtError::Truncated);
+        }
+        match hdr(buf, H_MAGIC) {
+            FDT_SW_MAGIC => Ok(Self { buf }),
+            FDT_MAGIC => Err(FdtError::BadState),
+            _ => Err(FdtError::BadMagic),
+        }
+    }
+
+    /// `fdt_sw_probe_memrsv_()`: still writing the reservation map.
+    fn probe_memrsv(&self) -> Result<(), FdtError> {
+        if hdr(self.buf, H_OFF_DT_STRINGS) != 0 {
+            return Err(FdtError::BadState);
+        }
+        Ok(())
+    }
+
+    /// `fdt_sw_probe_struct_()`: writing the structure block.
+    fn probe_struct(&self) -> Result<(), FdtError> {
+        if hdr(self.buf, H_OFF_DT_STRINGS) as usize != hdr(self.buf, H_TOTALSIZE) as usize {
+            return Err(FdtError::BadState);
+        }
+        Ok(())
+    }
+
+    /// `fdt_grab_space_()`: reserve `len` bytes at the end of the structure
+    /// block, returning their buffer offset.
+    fn grab_space(&mut self, len: usize) -> Option<usize> {
+        let total = hdr(self.buf, H_TOTALSIZE) as usize;
+        let struct_off = hdr(self.buf, H_OFF_DT_STRUCT) as usize;
+        let size_struct = hdr(self.buf, H_SIZE_DT_STRUCT) as usize;
+        let size_strings = hdr(self.buf, H_SIZE_DT_STRINGS) as usize;
+        let offset = size_struct;
+        let spaceleft = total.checked_sub(struct_off)?.checked_sub(size_strings)?;
+        if offset.checked_add(len)? > spaceleft {
+            return None;
+        }
+        set_hdr(self.buf, H_SIZE_DT_STRUCT, offset + len).ok()?;
+        Some(struct_off + offset)
+    }
+
+    /// `fdt_add_reservemap_entry()`.
+    pub fn add_reservemap_entry(&mut self, addr: u64, size: u64) -> Result<(), FdtError> {
+        self.probe_memrsv()?;
+        let offset = hdr(self.buf, H_OFF_DT_STRUCT) as usize;
+        if offset + RSV_ENTRY > hdr(self.buf, H_TOTALSIZE) as usize {
+            return Err(FdtError::NoSpace);
+        }
+        put(self.buf, offset, &addr.to_be_bytes())?;
+        put(self.buf, offset + 8, &size.to_be_bytes())?;
+        set_hdr(self.buf, H_OFF_DT_STRUCT, offset + RSV_ENTRY)
+    }
+
+    /// `fdt_finish_reservemap()`: end the reservation map and start the structure.
+    pub fn finish_reservemap(&mut self) -> Result<(), FdtError> {
+        self.add_reservemap_entry(0, 0)?;
+        let total = hdr(self.buf, H_TOTALSIZE) as usize;
+        set_hdr(self.buf, H_OFF_DT_STRINGS, total)
+    }
+
+    /// `fdt_begin_node()`.
+    pub fn begin_node(&mut self, name: &[u8]) -> Result<(), FdtError> {
+        self.probe_struct()?;
+        let namelen = name.len() + 1;
+        let pos = self
+            .grab_space(FDT_TAGSIZE + align4(namelen))
+            .ok_or(FdtError::NoSpace)?;
+        put(self.buf, pos, &FDT_BEGIN_NODE.to_be_bytes())?;
+        put(self.buf, pos + FDT_TAGSIZE, name)
+    }
+
+    /// `fdt_end_node()`.
+    pub fn end_node(&mut self) -> Result<(), FdtError> {
+        self.probe_struct()?;
+        let pos = self.grab_space(FDT_TAGSIZE).ok_or(FdtError::NoSpace)?;
+        put(self.buf, pos, &FDT_END_NODE.to_be_bytes())
+    }
+
+    /// `fdt_add_string_()`: append a string at the strings block's start, which
+    /// grows downward from the end. Returns its offset from the end, or 0 if
+    /// there is no room.
+    fn add_string(&mut self, s: &[u8]) -> Result<i32, FdtError> {
+        let total = hdr(self.buf, H_TOTALSIZE) as usize;
+        let strtabsize = hdr(self.buf, H_SIZE_DT_STRINGS) as usize;
+        let struct_top = hdr(self.buf, H_OFF_DT_STRUCT) as usize + hdr(self.buf, H_SIZE_DT_STRUCT) as usize;
+        let len = s.len() + 1;
+        let offset = strtabsize + len;
+        if offset > total || total - offset < struct_top {
+            return Ok(0);
+        }
+        let pos = total - offset;
+        put(self.buf, pos, s)?;
+        put(self.buf, pos + s.len(), &[0])?;
+        set_hdr(self.buf, H_SIZE_DT_STRINGS, strtabsize + len)?;
+        Ok(-(offset as i32))
+    }
+
+    /// `fdt_find_add_string_()` for the sequential form: a negative offset from
+    /// the end of the buffer, and whether it was added.
+    fn find_add_string(&mut self, s: &[u8]) -> Result<(i32, bool), FdtError> {
+        let total = hdr(self.buf, H_TOTALSIZE) as usize;
+        let size = hdr(self.buf, H_SIZE_DT_STRINGS) as usize;
+        let region = self.buf.get(total - size..total).ok_or(FdtError::Truncated)?;
+        if let Some(i) = find_string_len(region, s) {
+            return Ok(((i as i64 - size as i64) as i32, false));
+        }
+        Ok((self.add_string(s)?, true))
+    }
+
+    /// `fdt_property_placeholder()`: a property whose `len` bytes are zero and
+    /// ready to be written.
+    pub fn property_placeholder(&mut self, name: &[u8], len: usize) -> Result<&mut [u8], FdtError> {
+        self.probe_struct()?;
+        let flags = hdr(self.buf, H_LAST_COMP);
+        let (nameoff, allocated) = if flags & FDT_CREATE_FLAG_NO_NAME_DEDUP != 0 {
+            (self.add_string(name)?, true)
+        } else {
+            self.find_add_string(name)?
+        };
+        if nameoff == 0 {
+            return Err(FdtError::NoSpace);
+        }
+        let proplen = PROP_HEADER + align4(len);
+        let pos = match self.grab_space(proplen) {
+            Some(p) => p,
+            None => {
+                if allocated {
+                    del_last_string(self.buf, name.len() + 1)?;
+                }
+                return Err(FdtError::NoSpace);
+            }
+        };
+        zero(self.buf, pos, proplen)?;
+        put(self.buf, pos, &FDT_PROP.to_be_bytes())?;
+        put(self.buf, pos + 4, &(len as u32).to_be_bytes())?;
+        put(self.buf, pos + 8, &(nameoff as u32).to_be_bytes())?;
+        Ok(&mut self.buf[pos + PROP_HEADER..pos + PROP_HEADER + len])
+    }
+
+    /// `fdt_property()`.
+    pub fn property(&mut self, name: &[u8], val: &[u8]) -> Result<(), FdtError> {
+        self.property_placeholder(name, val.len())?.copy_from_slice(val);
+        Ok(())
+    }
+
+    /// `fdt_finish()`: close the tree, move the strings after the structure,
+    /// and fix the name offsets and the header into a finished tree.
+    pub fn finish(mut self) -> Result<(), FdtError> {
+        self.probe_struct()?;
+        let end = self.grab_space(FDT_TAGSIZE).ok_or(FdtError::NoSpace)?;
+        put(self.buf, end, &FDT_END.to_be_bytes())?;
+
+        let total = hdr(self.buf, H_TOTALSIZE) as usize;
+        let size_strings = hdr(self.buf, H_SIZE_DT_STRINGS) as usize;
+        let struct_off = hdr(self.buf, H_OFF_DT_STRUCT) as usize;
+        let size_struct = hdr(self.buf, H_SIZE_DT_STRUCT) as usize;
+        let old_str = total - size_strings;
+        let new_str = struct_off + size_struct;
+        self.buf.copy_within(old_str..old_str + size_strings, new_str);
+        set_hdr(self.buf, H_OFF_DT_STRINGS, new_str)?;
+
+        let mut offset = 0;
+        loop {
+            let (tok, next) = Fdt { buf: &self.buf[..total] }.next_tag(offset)?;
+            if tok == Token::End {
+                break;
+            }
+            if tok == Token::Prop {
+                let p = struct_off + offset;
+                let nameoff = be32(self.buf, p + 8).ok_or(FdtError::BadStructure)?;
+                let fixed = nameoff.wrapping_add(size_strings as u32);
+                put(self.buf, p + 8, &fixed.to_be_bytes())?;
+            }
+            offset = next;
+        }
+
+        set_hdr(self.buf, H_TOTALSIZE, new_str + size_strings)?;
+        set_hdr(self.buf, H_LAST_COMP, FDT_LAST_COMPATIBLE_VERSION)?;
+        set_hdr(self.buf, H_MAGIC, FDT_MAGIC as usize)
+    }
+}
+
+/// `fdt_sw_resize()`: copy an unfinished tree into a bigger or smaller buffer.
+/// The source and destination are separate buffers, so the C in-place form is
+/// not needed.
+pub fn sw_resize(src: &[u8], dst: &mut [u8]) -> Result<(), FdtError> {
+    if src.len() < FDT_V17_SIZE {
+        return Err(FdtError::Truncated);
+    }
+    match hdr(src, H_MAGIC) {
+        FDT_SW_MAGIC => {}
+        FDT_MAGIC => return Err(FdtError::BadState),
+        _ => return Err(FdtError::BadMagic),
+    }
+    let total = hdr(src, H_TOTALSIZE) as usize;
+    if total > src.len() {
+        return Err(FdtError::Truncated);
+    }
+    let head = hdr(src, H_OFF_DT_STRUCT) as usize + hdr(src, H_SIZE_DT_STRUCT) as usize;
+    let tail = hdr(src, H_SIZE_DT_STRINGS) as usize;
+    if head + tail > total {
+        return Err(FdtError::Internal);
+    }
+    let dlen = dst.len();
+    if head + tail > dlen {
+        return Err(FdtError::NoSpace);
+    }
+    copy_block(dst, 0, src, 0, head)?;
+    copy_block(dst, dlen - tail, src, total - tail, tail)?;
+    set_hdr(dst, H_TOTALSIZE, dlen)?;
+    if hdr(dst, H_OFF_DT_STRINGS) != 0 {
+        set_hdr(dst, H_OFF_DT_STRINGS, dlen)?;
+    }
+    Ok(())
+}
+
+/// `fdt_create_empty_tree()`: a tree with a root node and nothing else.
+pub fn create_empty_tree(buf: &mut [u8]) -> Result<(), FdtError> {
+    let bufsize = buf.len();
+    {
+        let mut sw = FdtSw::create(&mut *buf, 0)?;
+        sw.finish_reservemap()?;
+        sw.begin_node(b"")?;
+        sw.end_node()?;
+        sw.finish()?;
+    }
+    let struct_size = {
+        let v = Fdt::new(&*buf)?;
+        let mem_rsv_size = (v.num_mem_rsv()? + 1) * RSV_ENTRY;
+        let struct_size = v.size_dt_struct();
+        // A fresh tree is always in order, so C's repack path is never taken.
+        if v.blocks_misordered(mem_rsv_size, struct_size) {
+            return Err(FdtError::Internal);
+        }
+        struct_size
+    };
+    set_hdr(buf, H_VERSION, 17)?;
+    set_hdr(buf, H_SIZE_DT_STRUCT, struct_size)?;
+    set_hdr(buf, H_TOTALSIZE, bufsize)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

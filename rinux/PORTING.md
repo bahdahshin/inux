@@ -173,6 +173,7 @@ their KUnit/self tests to Rust tests, and updates the table below.
 | 136 | kernel `nanosleep` now sleeps the task: `sleep_until()` puts it in a sleep table and blocks it with `RunqueueBlocker`, and the tick (`wake_sleepers()`) wakes each task whose deadline has passed, at most 32 per tick. `wake()` also sets `need_resched`, so a woken task runs at once. Verified in QEMU: the init program's 150 ms nanosleep measures 150000 µs with the other self-tests passing | done |
 | 137 | the lib hooks wired into the kernel and checked in QEMU: `PoolRandom` draws a random UUID at boot (`check_lib_hooks`), the printk sink carries a `print_hex_dump()` line to the log, `UserSpace` replaces the raw timespec read of `nanosleep` (a bad pointer is `EFAULT`, checked by init), and `nanosleep` sleeps through `RunqueueBlocker` | done |
 | 138 | libfdt, read-only half: `scripts/dtc/libfdt/fdt.c` (header checks, the structure-block walk, `fdt_next_node`, the subnode and string helpers, `fdt_move`), `fdt_ro.c` (properties, names, paths, aliases, phandles, memory reservations, string lists, `get_path`, depth lookups, compatible search) and `fdt_strerror.c`, in `lib/src/libfdt.rs`; host tests build a version 17 blob in `lib/tests/libfdt_test.rs`. The write side (`fdt_rw.c`, `fdt_sw.c`, `fdt_wip.c`, `fdt_addresses.c`, `fdt_empty_tree.c`) and the `lib/fdt*.c` wrappers are not ported yet | done |
+| 139 | libfdt, write side: `scripts/dtc/libfdt/fdt_rw.c` (the in-place editor `FdtMut`: reservations, names, properties, nodes, `nop_*`, `pack`, and `open_into`), `fdt_sw.c` (the sequential builder `FdtSw` and `sw_resize`), `fdt_wip.c` (in-place value edits and NOPs), `fdt_addresses.c` (`#address-cells`/`#size-cells` and `appendprop_addrrange`) and `fdt_empty_tree.c` (`create_empty_tree`), in `lib/src/libfdt.rs`; host tests in `lib/tests/libfdt_rw_test.rs`. The C in-place forms (`open_into` and `sw_resize` into the same buffer) are split into separate source and destination buffers, and a freshly built tree is never repacked | done |
 | 138+ | user-space socket syscalls, more `drivers/` (AHCI, input, console), and `ipc/`, the rest of `crypto/`, `security/` | |
 
 ## How a step is done
@@ -819,6 +820,19 @@ or `test` (a C test file ported to Rust tests).
 | `scripts/dtc/libfdt/fdt.c` | `lib/src/libfdt.rs` | done | header checks, the structure walk, node and subnode iteration, `find_string_len`, `move_to`; the `can_assume()` fast paths are not ported |
 | `scripts/dtc/libfdt/fdt_ro.c` | `lib/src/libfdt.rs` | done | every read-only lookup as a method of `Fdt`; C's negative returns are `Result<_, FdtError>`, and the string-list helpers are free functions |
 | `scripts/dtc/libfdt/fdt_strerror.c` | `lib/src/libfdt.rs` | done | `strerror()` and `FdtError::name()`, with the table in code order |
+| `scripts/dtc/libfdt/fdt_rw.c` | `lib/src/libfdt.rs` | done | `FdtMut` with the reservation, name, property, node and NOP edits, `pack`, and `open_into` (separate source and destination) |
+| `scripts/dtc/libfdt/fdt_sw.c` | `lib/src/libfdt.rs` | done | `FdtSw` for the sequential builder, and `sw_resize` (separate source and destination) |
+| `scripts/dtc/libfdt/fdt_wip.c` | `lib/src/libfdt.rs` | done | in-place value edits and NOP tags on `FdtMut` |
+| `scripts/dtc/libfdt/fdt_addresses.c` | `lib/src/libfdt.rs` | done | `address_cells`, `size_cells` and `FdtMut::appendprop_addrrange` |
+| `scripts/dtc/libfdt/fdt_empty_tree.c` | `lib/src/libfdt.rs` | done | `create_empty_tree` |
+| `lib/fdt.c` | `lib/src/libfdt.rs` | done | wrapper that includes `scripts/dtc/libfdt/fdt.c` |
+| `lib/fdt_addresses.c` | `lib/src/libfdt.rs` | done | wrapper that includes `scripts/dtc/libfdt/fdt_addresses.c` |
+| `lib/fdt_empty_tree.c` | `lib/src/libfdt.rs` | done | wrapper that includes `scripts/dtc/libfdt/fdt_empty_tree.c` |
+| `lib/fdt_ro.c` | `lib/src/libfdt.rs` | done | wrapper that includes `scripts/dtc/libfdt/fdt_ro.c` |
+| `lib/fdt_rw.c` | `lib/src/libfdt.rs` | done | wrapper that includes `scripts/dtc/libfdt/fdt_rw.c` |
+| `lib/fdt_strerror.c` | `lib/src/libfdt.rs` | done | wrapper that includes `scripts/dtc/libfdt/fdt_strerror.c` |
+| `lib/fdt_sw.c` | `lib/src/libfdt.rs` | done | wrapper that includes `scripts/dtc/libfdt/fdt_sw.c` |
+| `lib/fdt_wip.c` | `lib/src/libfdt.rs` | done | wrapper that includes `scripts/dtc/libfdt/fdt_wip.c` |
 | `include/linux/fw_table.h` | `lib/src/fw_table.rs` | partial | `SubtableProc` in place of `struct acpi_subtable_proc`, with the handler as a closure; the `handler_arg` and `arg` pair folds into the closure |
 | `lib/rcuref.c` | `lib/src/rcuref.rs` | done | `rcuref_get()`, `rcuref_put()`, `rcuref_put_rcusafe()` and both slow paths; the preemption guard and `WARN_ONCE()` are not reproduced |
 | `include/linux/rcuref.h` | `lib/src/rcuref.rs` | done | the `RCUREF_*` constants, `RcuRef` in place of `rcuref_t`, with `new`, `read` and `is_dead` |
