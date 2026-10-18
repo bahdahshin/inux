@@ -161,7 +161,7 @@ pub fn start_kernel() -> ! {
 
     crate::rinux::crashtest::run();
     crate::rinux::selftest::check_timer();
-    crate::rinux::selftest::check_pit_clockevent();
+    crate::rinux::selftest::check_oneshot_tick();
     crate::rinux::selftest::check_rtc();
     crate::rinux::selftest::check_i8042();
     crate::rinux::selftest::check_8250();

@@ -15,52 +15,28 @@ const TICKS: u64 = HZ / 10;
 
 /// Waits for `TICKS` timer ticks and reports how long they took by the
 /// scheduler clock.
-/// Checks the PIT as a clock event device: the clockevents core converts a
-/// 10 ms expiry to a count, the count is armed in one-shot mode, and the
-/// latched count reads back as counting down from it. The periodic tick is
-/// restored straight after, well before the one-shot would expire.
-pub fn check_pit_clockevent() {
-    use crate::drivers::clocksource::i8253::{PIT_TICK_RATE, PitOneshot, pit_read_count, pit_set_periodic};
-    use rinux_lib::clockevents::{ClockEventDevice, NSEC_PER_SEC};
+/// Checks the tick now that it is one-shot: 100 ms of jiffies must come
+/// from about 100 one-shot IRQ0s, on schedule. The clock event device rearms
+/// each tick, so the count and the elapsed time should both match 100.
+pub fn check_oneshot_tick() {
+    use crate::kernel::sched::clock::local_clock;
+    use crate::kernel::time::NSEC_PER_MSEC;
+    use crate::kernel::time::jiffies::jiffies;
 
-    // ns to PIT ticks, as a shift-32 scale: mult = rate * 2^32 / 1e9.
-    let shift = 32;
-    let mult = (PIT_TICK_RATE << shift) / NSEC_PER_SEC;
-    let mut dev = ClockEventDevice {
-        mult,
-        shift,
-        min_delta_ns: 10_000,
-        max_delta_ns: 60_000_000,
-        min_delta_ticks: 0,
-        next_event: 0,
-        next_event_forced: false,
-        retries: 0,
-        shutdown: false,
-    };
-    let expires = 10_000_000i64;
-    let mut hw = PitOneshot;
-    let programmed = (((expires as u128) * mult as u128) >> shift) as u64;
-    let armed = dev.program_event(&mut hw, expires, 0, false);
-
-    let count = pit_read_count() as u64;
-    pit_set_periodic();
-
-    // The count must be at most what was programmed and must have counted
-    // down by less than a millisecond of ticks since.
-    let one_ms_ticks = PIT_TICK_RATE / 1000;
-    if armed.is_ok() && count <= programmed && count + one_ms_ticks > programmed && count > 0 {
-        pr_info!(
-            "rinux: pit clockevent: ok (10 ms armed as {} ticks, reads back {})",
-            programmed,
-            count
-        );
+    let start_j = jiffies();
+    let start_ns = local_clock();
+    for _ in 0..(1u64 << 32) {
+        if jiffies().wrapping_sub(start_j) >= 100 {
+            break;
+        }
+        core::hint::spin_loop();
+    }
+    let ticks = jiffies().wrapping_sub(start_j);
+    let ms = local_clock().wrapping_sub(start_ns) / NSEC_PER_MSEC;
+    if (95..=105).contains(&ticks) && (90..=115).contains(&ms) {
+        pr_info!("rinux: tick: one-shot ok ({} ticks in {} ms)", ticks, ms);
     } else {
-        pr_err!(
-            "rinux: pit clockevent: FAILED (armed {:?}, programmed {}, read back {})",
-            armed,
-            programmed,
-            count
-        );
+        pr_err!("rinux: tick: one-shot FAILED ({} ticks in {} ms)", ticks, ms);
     }
 }
 
