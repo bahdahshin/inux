@@ -177,6 +177,7 @@ pub mod rslib;
 pub mod stringhash;
 pub mod sysctl;
 pub mod timeconst;
+pub mod time_namespace;
 pub mod timeconv;
 pub mod timecounter;
 pub mod unaligned;
