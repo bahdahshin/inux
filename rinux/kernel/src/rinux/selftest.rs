@@ -169,6 +169,8 @@ static SLEEP_TIMEOUT_DONE: core::sync::atomic::AtomicBool = core::sync::atomic::
 /// running task, which must not be the boot task (the idle task).
 extern "C" fn sleep_timeout_check(_arg: u64) -> i32 {
     use crate::kernel::time::jiffies::jiffies;
+    use crate::kernel::sched::clock::local_clock;
+    use crate::kernel::time::hrtimer::sleep_until_ns;
     use crate::kernel::time::sleep_timeout::{msleep, schedule_timeout};
     use core::sync::atomic::Ordering;
 
@@ -184,20 +186,34 @@ extern "C" fn sleep_timeout_check(_arg: u64) -> i32 {
     msleep(30);
     let msleep_slept = jiffies().wrapping_sub(j2);
 
-    let ok = negative_ret == 0 && negative_jiffies <= 1 && ret == 0 && slept >= 20 && msleep_slept >= 30;
+    // A high-resolution sleep of 2.5 ms wakes at its deadline, not on a whole
+    // jiffy, and not early.
+    let t0 = local_clock();
+    sleep_until_ns(t0 + 2_500_000);
+    let hr_ns = local_clock().wrapping_sub(t0);
+    let hr_ok = (2_500_000..25_000_000).contains(&hr_ns);
+
+    let ok = negative_ret == 0
+        && negative_jiffies <= 1
+        && ret == 0
+        && slept >= 20
+        && msleep_slept >= 30
+        && hr_ok;
     if ok {
         pr_info!(
-            "rinux: sleep_timeout: schedule_timeout(20) slept {} jiffies, msleep(30) slept {} jiffies",
+            "rinux: sleep_timeout: schedule_timeout(20) slept {} jiffies, msleep(30) slept {} jiffies, hrtimer 2.5 ms slept {} us",
             slept,
-            msleep_slept
+            msleep_slept,
+            hr_ns / 1000
         );
     } else {
         pr_err!(
-            "rinux: sleep_timeout: FAILED (negative ret {}, slept {}, ret {}, msleep slept {})",
+            "rinux: sleep_timeout: FAILED (negative ret {}, slept {}, ret {}, msleep slept {}, hrtimer {} ns)",
             negative_ret,
             slept,
             ret,
-            msleep_slept
+            msleep_slept,
+            hr_ns
         );
     }
     SLEEP_TIMEOUT_DONE.store(true, Ordering::Release);

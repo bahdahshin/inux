@@ -2,6 +2,7 @@
 //! Timekeeping, as in Linux's `kernel/time/`.
 
 pub mod clocksource;
+pub mod hrtimer;
 pub mod jiffies;
 pub mod sleep_timeout;
 pub mod tick_common;

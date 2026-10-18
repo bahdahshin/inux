@@ -381,12 +381,11 @@ fn sys_gettimeofday(tv: u64, _tz: u64) -> i64 {
 
 /// `sys_nanosleep()`: suspend the caller for at least the requested time.
 ///
-/// A simplified port of `kernel/time/hrtimer.c` (`sys_nanosleep` ->
-/// `hrtimer_nanosleep` -> `do_nanosleep`): rinux has one user task and a
-/// jiffies tick, so rather than arming an `hrtimer` and scheduling out, it
-/// rounds the request up to whole jiffies and waits for the tick to reach the
-/// target (interrupts stay on, so `jiffies` advances). The optional remaining
-/// time is reported as zero, since the wait always completes in full here.
+/// `sys_nanosleep` -> `hrtimer_nanosleep` -> `do_nanosleep`: the request is
+/// armed as a high-resolution timer in the kernel's timer queue, and the tick
+/// wakes the task when the deadline passes (see `kernel/time/hrtimer.rs`). The
+/// optional remaining time is reported as zero, since the wait always
+/// completes in full here.
 /// The address space of the running task, for the checked user copies.
 ///
 /// Only user tasks make syscalls, so the PGD is the task's own.
@@ -397,7 +396,6 @@ fn current_user() -> UserSpace {
 
 fn sys_nanosleep(rqtp: u64, rmtp: u64) -> i64 {
     use crate::kernel::time::NSEC_PER_SEC;
-    use crate::kernel::time::jiffies::{HZ, jiffies};
 
     if rqtp == 0 {
         return EINVAL;
@@ -415,17 +413,13 @@ fn sys_nanosleep(rqtp: u64, rmtp: u64) -> i64 {
         return EINVAL;
     }
 
-    // Round the request up to whole jiffies (`timespec64_to_jiffies`). jiffies
-    // is a monotonic 64-bit counter, so a plain comparison suffices.
-    let ns_per_tick = (NSEC_PER_SEC / HZ) as i64;
-    let ticks = sec as u64 * HZ + (nsec + ns_per_tick - 1) as u64 / ns_per_tick as u64;
-    let deadline = jiffies() + ticks;
-    // The SYSCALL entry masks interrupts, which would freeze `jiffies`. Enable
-    // them so the timer tick advances, waiting with `hlt` between ticks, then
-    // restore the interrupts-off state the entry runs in.
-    if jiffies() < deadline {
-        crate::kernel::sched::core::sleep_until(deadline);
-    }
+    // The sleep is a high-resolution one: the deadline is in nanoseconds of
+    // the local clock, and the timer tick wakes the task when it passes.
+    let now = crate::kernel::sched::clock::local_clock();
+    let deadline = now
+        .saturating_add((sec as u64).saturating_mul(NSEC_PER_SEC))
+        .saturating_add(nsec as u64);
+    crate::kernel::time::hrtimer::sleep_until_ns(deadline);
 
     if rmtp != 0 && user.copy_to_user(rmtp as usize, &[0u8; 16]) != 0 {
         return EFAULT;

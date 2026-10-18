@@ -380,6 +380,7 @@ pub fn preempt_on_irq_return() {
 /// `sched_tick()`: charge the running task one tick and preempt it at the
 /// end of its slice.
 pub fn scheduler_tick() {
+    crate::kernel::time::hrtimer::run_expired(crate::kernel::sched::clock::local_clock());
     wake_sleepers(crate::kernel::time::jiffies::jiffies());
     let curr = current();
     // SAFETY: curr is the running task.
