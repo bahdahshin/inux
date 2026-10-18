@@ -21,6 +21,7 @@ pub mod bucket_locks;
 pub mod bug;
 pub mod bust_spinlocks;
 pub mod check_signature;
+pub mod clockevents;
 pub mod clz_ctz;
 pub mod clz_tab;
 pub mod cpudl;
