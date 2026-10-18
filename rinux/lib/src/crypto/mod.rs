@@ -24,3 +24,31 @@ pub mod sm3;
 pub mod sm4;
 pub mod sm4_sbox;
 pub mod utils;
+
+// Modules registered by the /batch run (units 6-12). Each is an empty stub
+// until its worker fills it in.
+pub mod aes;
+pub mod aescfb;
+pub mod anubis;
+pub mod aria;
+pub mod blowfish;
+pub mod camellia;
+pub mod cast5;
+pub mod cast6;
+pub mod chacha20poly1305;
+pub mod curve25519;
+pub mod des;
+pub mod gf128hash;
+pub mod gf128mul;
+pub mod khazad;
+pub mod md4;
+pub mod michael_mic;
+pub mod rmd160;
+pub mod seed;
+pub mod serpent;
+pub mod sha3;
+pub mod sha512;
+pub mod streebog;
+pub mod tea;
+pub mod twofish;
+pub mod wp512;
