@@ -34,3 +34,51 @@ pub fn pit_set_periodic() {
         outb_p((PIT_LATCH >> 8) as u8, PIT_CH0); // MSB
     }
 }
+
+/// Channel 0 in one-shot mode (mode 0, interrupt on terminal count),
+/// LSB/MSB access, binary.
+const PIT_ONESHOT_CMD: u8 = 0x30;
+
+/// The longest count a 16-bit channel can hold.
+pub const PIT_MAX_COUNT: u64 = 0xffff;
+
+/// `pit_set_oneshot()`: arm channel 0 to count `count` ticks once, then stop.
+/// Callers are the clockevents core, through [`PitOneshot`].
+pub fn pit_set_oneshot(count: u16) {
+    let _guard = I8253_LOCK.lock_irqsave();
+    // SAFETY: the PIT ports belong to this driver.
+    unsafe {
+        outb_p(PIT_ONESHOT_CMD, PIT_MODE);
+        outb_p((count & 0xff) as u8, PIT_CH0);
+        outb_p((count >> 8) as u8, PIT_CH0);
+    }
+}
+
+/// `pit_read_count()`: the current count of channel 0, latched and read back.
+pub fn pit_read_count() -> u16 {
+    let _guard = I8253_LOCK.lock_irqsave();
+    use crate::arch::x86::include::io::{inb, outb};
+    // SAFETY: the PIT ports belong to this driver. Command 0x00 latches
+    // channel 0; the two data reads are LSB then MSB.
+    unsafe {
+        outb(0x00, PIT_MODE);
+        let lo = inb(PIT_CH0) as u16;
+        let hi = inb(PIT_CH0) as u16;
+        (hi << 8) | lo
+    }
+}
+
+/// The PIT as a clock event device: [`SetNextEvent`] arms a one-shot count.
+pub struct PitOneshot;
+
+impl rinux_lib::clockevents::SetNextEvent for PitOneshot {
+    fn set_next_event(&mut self, cycles: u64) -> i32 {
+        // A count of 0 or one past the 16-bit range cannot be armed; refusing
+        // makes the clockevents core retry with its minimum delta.
+        if cycles == 0 || cycles > PIT_MAX_COUNT {
+            return -1;
+        }
+        pit_set_oneshot(cycles as u16);
+        0
+    }
+}
