@@ -45,19 +45,17 @@ static TICK_DEV: SpinLock<ClockEventDevice> = SpinLock::new(ClockEventDevice {
 /// to 0xffff and counts down again. The count read now therefore tells how
 /// long ago the tick fired, so the next one-shot is shortened by that much
 /// and the ticks stay on their schedule, with no drift from IRQ latency.
+///
+/// The fired event is acknowledged first. A late tick can leave the device
+/// on its forced minimum-delta event; once that has fired it must not still
+/// count as pending, or the next program arms nothing and the tick stops.
 fn rearm_tick() {
+    let mut dev = TICK_DEV.lock_irqsave();
+    dev.event_fired();
     let since_fire = (0xffffu64 - pit_read_count() as u64) & 0xffff;
     let since_fire_ns = (since_fire * NSEC_PER_SEC / PIT_TICK_RATE) as i64;
-    // A tick handler that ran more than half a period late must not hand the
-    // device a deadline in the past or below its minimum delta: such a
-    // deadline takes the device's forced path, which stalled the boot in QEMU
-    // with the unclamped value. Clamping keeps the device on its normal path.
-    let expires = (TICK_PERIOD_NS - since_fire_ns).max(TICK_PERIOD_NS / 2);
-    if TICK_DEV
-        .lock_irqsave()
-        .program_event(&mut PitOneshot, expires, 0, true)
-        .is_err()
-    {
+    let expires = TICK_PERIOD_NS - since_fire_ns;
+    if dev.program_event(&mut PitOneshot, expires, 0, true).is_err() {
         pr_err!("tick: could not re-arm the PIT tick");
     }
 }

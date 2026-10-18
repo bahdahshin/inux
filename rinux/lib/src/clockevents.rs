@@ -133,6 +133,14 @@ impl ClockEventDevice {
         }
     }
 
+    /// The programmed event has fired. A forced (minimum-delta) event is
+    /// pending only until it fires, so the interrupt handler clears the flag
+    /// before it reprograms. Without this, the next program would see a stale
+    /// forced flag and return without arming anything.
+    pub fn event_fired(&mut self) {
+        self.next_event_forced = false;
+    }
+
     /// `clockevents_program_event()` for a device not coupled to a
     /// clocksource. Programs the device to fire at `expires` (ns). `force`
     /// allows the minimum delta when `expires` cannot be reached.
