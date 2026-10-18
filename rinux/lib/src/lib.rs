@@ -152,6 +152,7 @@ pub mod decompress_unlzma;
 pub mod groups;
 pub mod hashtable;
 pub mod hlist;
+pub mod hrtimer;
 pub mod ip6_checksum;
 pub mod ipv6_addrconf;
 pub mod ipv6_exthdrs;
