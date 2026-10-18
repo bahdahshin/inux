@@ -108,7 +108,11 @@ impl ClockEventDevice {
     /// `clockevents_program_min_delta()`: program the device for its minimum
     /// delta. Three refusals in a row grow the minimum delta; if that cannot
     /// grow any further the call gives up.
-    pub fn program_min_delta<H: SetNextEvent>(&mut self, hw: &mut H, now: i64) -> Result<(), Etime> {
+    pub fn program_min_delta<H: SetNextEvent>(
+        &mut self,
+        hw: &mut H,
+        now: i64,
+    ) -> Result<(), Etime> {
         let mut i = 0;
         loop {
             let delta = self.min_delta_ns;
@@ -213,7 +217,11 @@ mod tests {
 
     impl Hw {
         fn new(refuse: u32) -> Self {
-            Self { refuse, calls: [0; 16], n: 0 }
+            Self {
+                refuse,
+                calls: [0; 16],
+                n: 0,
+            }
         }
 
         fn seen(&self) -> &[u64] {
@@ -299,7 +307,10 @@ mod tests {
 
     #[test]
     fn a_shut_down_device_is_not_programmed() {
-        let mut d = ClockEventDevice { shutdown: true, ..dev() };
+        let mut d = ClockEventDevice {
+            shutdown: true,
+            ..dev()
+        };
         let mut hw = Hw::new(0);
         assert_eq!(d.program_event(&mut hw, 50_000, 0, false), Ok(()));
         assert!(hw.seen().is_empty());

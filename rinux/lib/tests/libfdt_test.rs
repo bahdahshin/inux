@@ -2,7 +2,7 @@
 //! Host tests for the read-only libfdt port, over a blob built in the test.
 //! Linux has no KUnit file for these; the checks follow the C behaviour.
 
-use rinux_lib::libfdt::{find_string_len, strerror, stringlist_contains, Fdt, FdtError};
+use rinux_lib::libfdt::{Fdt, FdtError, find_string_len, strerror, stringlist_contains};
 
 const BEGIN: u32 = 1;
 const END_NODE: u32 = 2;
@@ -163,11 +163,11 @@ fn properties_and_string_lists() {
     assert_eq!(fdt.stringlist_count(root, b"compatible"), Ok(2));
     assert_eq!(fdt.stringlist_search(root, b"compatible", b"bar"), Ok(1));
     assert_eq!(fdt.stringlist_get(root, b"compatible", 0), Ok(&b"foo"[..]));
-    assert_eq!(fdt.stringlist_get(root, b"compatible", 2), Err(FdtError::NotFound));
     assert_eq!(
-        fdt.node_check_compatible(root, b"foo"),
-        Ok(true)
+        fdt.stringlist_get(root, b"compatible", 2),
+        Err(FdtError::NotFound)
     );
+    assert_eq!(fdt.node_check_compatible(root, b"foo"), Ok(true));
     assert_eq!(fdt.node_offset_by_compatible(None, b"bar"), Ok(root));
 
     let cpu = fdt.path_offset(b"/cpu@0").unwrap();

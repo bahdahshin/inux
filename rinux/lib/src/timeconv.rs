@@ -72,7 +72,9 @@ pub fn time64_to_tm(totalsecs: i64, offset: i32) -> Tm {
     let year_of_century = (u64tmp >> 32) as u32;
     let day_of_year = (u64tmp as u32) / 2_939_745 / 4;
 
-    let mut year = century.wrapping_mul(100).wrapping_add(year_of_century as u64);
+    let mut year = century
+        .wrapping_mul(100)
+        .wrapping_add(year_of_century as u64);
     let is_leap_year = if year_of_century != 0 {
         year_of_century % 4 == 0
     } else {

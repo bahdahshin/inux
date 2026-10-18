@@ -35,7 +35,10 @@ pub fn timespec64_add(a: Timespec64, b: Timespec64) -> Timespec64 {
         nsec -= NSEC_PER_SEC;
         sec += 1;
     }
-    Timespec64 { tv_sec: sec, tv_nsec: nsec }
+    Timespec64 {
+        tv_sec: sec,
+        tv_nsec: nsec,
+    }
 }
 
 /// `timespec64_to_ktime()`: nanoseconds, saturated to the `ktime_t` range.
@@ -89,37 +92,64 @@ mod tests {
     use super::*;
 
     fn ts(sec: i64, nsec: i64) -> Timespec64 {
-        Timespec64 { tv_sec: sec, tv_nsec: nsec }
+        Timespec64 {
+            tv_sec: sec,
+            tv_nsec: nsec,
+        }
     }
 
     #[test]
     fn timespec_add_carries_nanoseconds() {
-        assert_eq!(timespec64_add(ts(1, 900_000_000), ts(2, 200_000_000)), ts(4, 100_000_000));
+        assert_eq!(
+            timespec64_add(ts(1, 900_000_000), ts(2, 200_000_000)),
+            ts(4, 100_000_000)
+        );
     }
 
     #[test]
     fn monotonic_time_is_shifted_by_the_offset() {
-        let off = TimensOffsets { monotonic: ts(100, 0), boottime: ts(0, 0) };
+        let off = TimensOffsets {
+            monotonic: ts(100, 0),
+            boottime: ts(0, 0),
+        };
         assert_eq!(timens_add_monotonic(ts(5, 0), &off), ts(105, 0));
         assert_eq!(timens_add_boottime(ts(5, 0), &off), ts(5, 0));
     }
 
     #[test]
     fn host_time_is_the_namespace_time_minus_the_offset() {
-        let off = TimensOffsets { monotonic: ts(10, 0), boottime: ts(20, 0) };
-        assert_eq!(do_timens_ktime_to_host(CLOCK_MONOTONIC, 15 * NSEC_PER_SEC, &off), 5 * NSEC_PER_SEC);
-        assert_eq!(do_timens_ktime_to_host(CLOCK_BOOTTIME, 25 * NSEC_PER_SEC, &off), 5 * NSEC_PER_SEC);
+        let off = TimensOffsets {
+            monotonic: ts(10, 0),
+            boottime: ts(20, 0),
+        };
+        assert_eq!(
+            do_timens_ktime_to_host(CLOCK_MONOTONIC, 15 * NSEC_PER_SEC, &off),
+            5 * NSEC_PER_SEC
+        );
+        assert_eq!(
+            do_timens_ktime_to_host(CLOCK_BOOTTIME, 25 * NSEC_PER_SEC, &off),
+            5 * NSEC_PER_SEC
+        );
     }
 
     #[test]
     fn an_already_passed_absolute_time_becomes_zero() {
-        let off = TimensOffsets { monotonic: ts(10, 0), boottime: ts(0, 0) };
-        assert_eq!(do_timens_ktime_to_host(CLOCK_MONOTONIC, 5 * NSEC_PER_SEC, &off), 0);
+        let off = TimensOffsets {
+            monotonic: ts(10, 0),
+            boottime: ts(0, 0),
+        };
+        assert_eq!(
+            do_timens_ktime_to_host(CLOCK_MONOTONIC, 5 * NSEC_PER_SEC, &off),
+            0
+        );
     }
 
     #[test]
     fn other_clocks_are_not_shifted() {
-        let off = TimensOffsets { monotonic: ts(10, 0), boottime: ts(10, 0) };
+        let off = TimensOffsets {
+            monotonic: ts(10, 0),
+            boottime: ts(10, 0),
+        };
         assert_eq!(do_timens_ktime_to_host(0, 42, &off), 42);
     }
 }

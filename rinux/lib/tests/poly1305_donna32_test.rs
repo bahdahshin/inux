@@ -32,7 +32,9 @@ fn matches_the_44_bit_core_for_every_length() {
     // A key with every byte value present, so the clamp and the limbs see
     // all bit patterns, and messages of each length from 0 to 300 bytes.
     let key: [u8; 32] = core::array::from_fn(|i| (i as u8).wrapping_mul(37).wrapping_add(11));
-    let msg: Vec<u8> = (0..300u32).map(|i| (i.wrapping_mul(131) ^ 0x5a) as u8).collect();
+    let msg: Vec<u8> = (0..300u32)
+        .map(|i| (i.wrapping_mul(131) ^ 0x5a) as u8)
+        .collect();
     for len in 0..=msg.len() {
         assert_eq!(
             poly1305_tag(&key, &msg[..len]),

@@ -176,7 +176,10 @@ mod tests {
 
     #[test]
     fn microsecond_offsets_are_scaled_to_nanoseconds() {
-        let mut us = NtpData { time_status: STA_PLL, ..pll() };
+        let mut us = NtpData {
+            time_status: STA_PLL,
+            ..pll()
+        };
         let mut ns = pll();
         ntp_update_offset(&mut us, 5, 1);
         ntp_update_offset(&mut ns, 5_000, 1);

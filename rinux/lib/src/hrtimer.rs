@@ -40,7 +40,11 @@ impl<const N: usize> TimerQueue<N> {
     /// An empty queue.
     pub const fn new() -> Self {
         Self {
-            entries: [Entry { expires: 0, seq: 0, id: 0 }; N],
+            entries: [Entry {
+                expires: 0,
+                seq: 0,
+                id: 0,
+            }; N],
             len: 0,
             seq: 0,
         }

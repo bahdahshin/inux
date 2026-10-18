@@ -401,7 +401,9 @@ impl<'a> Fdt<'a> {
     /// next token. A premature end or a bad token is an `Err`, which the C
     /// code reports as `FDT_END` with a negative next offset.
     fn next_tag(&self, offset: usize) -> Result<(Token, usize), FdtError> {
-        let tag_bytes = self.offset_ptr(offset, FDT_TAGSIZE).ok_or(FdtError::Truncated)?;
+        let tag_bytes = self
+            .offset_ptr(offset, FDT_TAGSIZE)
+            .ok_or(FdtError::Truncated)?;
         let tag = be32(tag_bytes, 0).ok_or(FdtError::Truncated)?;
         let mut off = offset + FDT_TAGSIZE;
 
@@ -427,10 +429,7 @@ impl<'a> Fdt<'a> {
                 }
                 // Skip the len and nameoff fields, then the value.
                 off += PROP_HEADER - FDT_TAGSIZE + len as usize;
-                if self.version() < 0x10
-                    && len >= 8
-                    && (off as u32).wrapping_sub(len) % 8 != 0
-                {
+                if self.version() < 0x10 && len >= 8 && (off as u32).wrapping_sub(len) % 8 != 0 {
                     off += 4;
                 }
                 Token::Prop
@@ -588,10 +587,7 @@ impl<'a> Fdt<'a> {
         let s = buf
             .get(start..start + len as usize)
             .ok_or(FdtError::Truncated)?;
-        let n = s
-            .iter()
-            .position(|&c| c == 0)
-            .ok_or(FdtError::Truncated)?;
+        let n = s.iter().position(|&c| c == 0).ok_or(FdtError::Truncated)?;
         Ok(&s[..n])
     }
 
@@ -627,7 +623,9 @@ impl<'a> Fdt<'a> {
 
     /// `fdt_mem_rsv()`: the `n`th reservation as (address, size), if present.
     fn mem_rsv_entry(&self, n: usize) -> Option<(u64, u64)> {
-        let absoffset = self.off_mem_rsvmap().checked_add(n.checked_mul(RSV_ENTRY)?)?;
+        let absoffset = self
+            .off_mem_rsvmap()
+            .checked_add(n.checked_mul(RSV_ENTRY)?)?;
         let e = self.buf.get(absoffset..absoffset.checked_add(RSV_ENTRY)?)?;
         Some((be64(e, 0)?, be64(e, 8)?))
     }
@@ -722,10 +720,7 @@ impl<'a> Fdt<'a> {
 
     /// The value of a property, realigned for versions before 16 as C does.
     fn prop_value(&self, poffset: usize, prop: Property<'a>) -> Result<&'a [u8], FdtError> {
-        if self.version() < 0x10
-            && (poffset + PROP_HEADER) % 8 != 0
-            && prop.data.len() >= 8
-        {
+        if self.version() < 0x10 && (poffset + PROP_HEADER) % 8 != 0 && prop.data.len() >= 8 {
             return self
                 .offset_ptr(poffset + PROP_HEADER + 4, prop.data.len())
                 .ok_or(FdtError::BadStructure);
@@ -735,11 +730,7 @@ impl<'a> Fdt<'a> {
 
     /// `fdt_get_property_namelen_()`: the property named `name` on a node, with
     /// its token offset.
-    fn find_property(
-        &self,
-        node: usize,
-        name: &[u8],
-    ) -> Result<(usize, Property<'a>), FdtError> {
+    fn find_property(&self, node: usize, name: &[u8]) -> Result<(usize, Property<'a>), FdtError> {
         let mut offset = self.first_property_offset(node)?;
         loop {
             let prop = self.property_at(offset)?;
@@ -827,7 +818,10 @@ impl<'a> Fdt<'a> {
                     return Ok(offset);
                 }
             }
-            let q = path[p..].iter().position(|&c| c == b'/').map_or(end, |i| p + i);
+            let q = path[p..]
+                .iter()
+                .position(|&c| c == b'/')
+                .map_or(end, |i| p + i);
             offset = self.subnode_offset(offset, &path[p..q])?;
             p = q;
         }
@@ -1325,7 +1319,13 @@ fn nop_region(buf: &mut [u8], start: usize, len: usize) -> Result<(), FdtError> 
 }
 
 /// Copy `len` bytes of `src` to `dst` (`copy_block`).
-fn copy_block(dst: &mut [u8], dst_off: usize, src: &[u8], src_off: usize, len: usize) -> Result<(), FdtError> {
+fn copy_block(
+    dst: &mut [u8],
+    dst_off: usize,
+    src: &[u8],
+    src_off: usize,
+    len: usize,
+) -> Result<(), FdtError> {
     let s = src
         .get(src_off..src_off.checked_add(len).ok_or(FdtError::Truncated)?)
         .ok_or(FdtError::Truncated)?;
@@ -1427,7 +1427,9 @@ impl<'a> FdtMut<'a> {
             return Err(FdtError::Truncated);
         }
         {
-            let v = Fdt { buf: &buf[..totalsize] };
+            let v = Fdt {
+                buf: &buf[..totalsize],
+            };
             if v.version() < 17 {
                 return Err(FdtError::BadVersion);
             }
@@ -1448,7 +1450,9 @@ impl<'a> FdtMut<'a> {
 
     fn view(&self) -> Fdt<'_> {
         let totalsize = hdr(self.buf, H_TOTALSIZE) as usize;
-        Fdt { buf: &self.buf[..totalsize] }
+        Fdt {
+            buf: &self.buf[..totalsize],
+        }
     }
 
     /// The structure-block offset of a property and its value length.
@@ -1489,9 +1493,18 @@ impl<'a> FdtMut<'a> {
             (v.get_name(node)?.len(), v.off_dt_struct())
         };
         let namepos = struct_off + node + FDT_TAGSIZE;
-        splice_struct(self.buf, namepos, align4(oldlen + 1), align4(name.len() + 1))?;
+        splice_struct(
+            self.buf,
+            namepos,
+            align4(oldlen + 1),
+            align4(name.len() + 1),
+        )?;
         put(self.buf, namepos, name)?;
-        zero(self.buf, namepos + name.len(), align4(name.len() + 1) - name.len())
+        zero(
+            self.buf,
+            namepos + name.len(),
+            align4(name.len() + 1) - name.len(),
+        )
     }
 
     /// `fdt_resize_property_()`: a property that exists gets a new length, and
@@ -1529,7 +1542,12 @@ impl<'a> FdtMut<'a> {
 
     /// `fdt_setprop_placeholder()`: the value of a property, sized to `len`
     /// bytes and ready to be written. The bytes are zero.
-    pub fn setprop_placeholder(&mut self, node: usize, name: &[u8], len: usize) -> Result<&mut [u8], FdtError> {
+    pub fn setprop_placeholder(
+        &mut self,
+        node: usize,
+        name: &[u8],
+        len: usize,
+    ) -> Result<&mut [u8], FdtError> {
         let pos = match self.resize_property(node, name, len) {
             Err(FdtError::NotFound) => self.add_property(node, name, len)?,
             r => r?,
@@ -1539,13 +1557,20 @@ impl<'a> FdtMut<'a> {
 
     /// `fdt_setprop()`.
     pub fn setprop(&mut self, node: usize, name: &[u8], val: &[u8]) -> Result<(), FdtError> {
-        self.setprop_placeholder(node, name, val.len())?.copy_from_slice(val);
+        self.setprop_placeholder(node, name, val.len())?
+            .copy_from_slice(val);
         Ok(())
     }
 
     /// `fdt_setprop_inplace_namelen_partial()`: overwrite part of a value that
     /// is already long enough, without resizing.
-    pub fn setprop_inplace_partial(&mut self, node: usize, name: &[u8], idx: usize, val: &[u8]) -> Result<(), FdtError> {
+    pub fn setprop_inplace_partial(
+        &mut self,
+        node: usize,
+        name: &[u8],
+        idx: usize,
+        val: &[u8],
+    ) -> Result<(), FdtError> {
         let (poff, proplen) = self.prop_info(node, name)?;
         if proplen < val.len() + idx {
             return Err(FdtError::NoSpace);
@@ -1555,7 +1580,12 @@ impl<'a> FdtMut<'a> {
     }
 
     /// `fdt_setprop_inplace()`: overwrite a value of exactly the same length.
-    pub fn setprop_inplace(&mut self, node: usize, name: &[u8], val: &[u8]) -> Result<(), FdtError> {
+    pub fn setprop_inplace(
+        &mut self,
+        node: usize,
+        name: &[u8],
+        val: &[u8],
+    ) -> Result<(), FdtError> {
         let (_, proplen) = self.prop_info(node, name)?;
         if proplen != val.len() {
             return Err(FdtError::NoSpace);
@@ -1659,7 +1689,11 @@ impl<'a> FdtMut<'a> {
         zero(self.buf, pos, nodelen)?;
         put(self.buf, pos, &FDT_BEGIN_NODE.to_be_bytes())?;
         put(self.buf, pos + FDT_TAGSIZE, name)?;
-        put(self.buf, pos + nodelen - FDT_TAGSIZE, &FDT_END_NODE.to_be_bytes())?;
+        put(
+            self.buf,
+            pos + nodelen - FDT_TAGSIZE,
+            &FDT_END_NODE.to_be_bytes(),
+        )?;
         Ok(offset)
     }
 
@@ -1829,7 +1863,8 @@ impl<'a> FdtSw<'a> {
     fn add_string(&mut self, s: &[u8]) -> Result<i32, FdtError> {
         let total = hdr(self.buf, H_TOTALSIZE) as usize;
         let strtabsize = hdr(self.buf, H_SIZE_DT_STRINGS) as usize;
-        let struct_top = hdr(self.buf, H_OFF_DT_STRUCT) as usize + hdr(self.buf, H_SIZE_DT_STRUCT) as usize;
+        let struct_top =
+            hdr(self.buf, H_OFF_DT_STRUCT) as usize + hdr(self.buf, H_SIZE_DT_STRUCT) as usize;
         let len = s.len() + 1;
         let offset = strtabsize + len;
         if offset > total || total - offset < struct_top {
@@ -1847,7 +1882,10 @@ impl<'a> FdtSw<'a> {
     fn find_add_string(&mut self, s: &[u8]) -> Result<(i32, bool), FdtError> {
         let total = hdr(self.buf, H_TOTALSIZE) as usize;
         let size = hdr(self.buf, H_SIZE_DT_STRINGS) as usize;
-        let region = self.buf.get(total - size..total).ok_or(FdtError::Truncated)?;
+        let region = self
+            .buf
+            .get(total - size..total)
+            .ok_or(FdtError::Truncated)?;
         if let Some(i) = find_string_len(region, s) {
             return Ok(((i as i64 - size as i64) as i32, false));
         }
@@ -1886,7 +1924,8 @@ impl<'a> FdtSw<'a> {
 
     /// `fdt_property()`.
     pub fn property(&mut self, name: &[u8], val: &[u8]) -> Result<(), FdtError> {
-        self.property_placeholder(name, val.len())?.copy_from_slice(val);
+        self.property_placeholder(name, val.len())?
+            .copy_from_slice(val);
         Ok(())
     }
 
@@ -1903,12 +1942,16 @@ impl<'a> FdtSw<'a> {
         let size_struct = hdr(self.buf, H_SIZE_DT_STRUCT) as usize;
         let old_str = total - size_strings;
         let new_str = struct_off + size_struct;
-        self.buf.copy_within(old_str..old_str + size_strings, new_str);
+        self.buf
+            .copy_within(old_str..old_str + size_strings, new_str);
         set_hdr(self.buf, H_OFF_DT_STRINGS, new_str)?;
 
         let mut offset = 0;
         loop {
-            let (tok, next) = Fdt { buf: &self.buf[..total] }.next_tag(offset)?;
+            let (tok, next) = Fdt {
+                buf: &self.buf[..total],
+            }
+            .next_tag(offset)?;
             if tok == Token::End {
                 break;
             }

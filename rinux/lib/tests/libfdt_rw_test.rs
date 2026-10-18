@@ -3,9 +3,7 @@
 //! editor, packing and the copy helpers. Trees are built in the test. Linux
 //! has no KUnit file for these; the checks follow the C behaviour.
 
-use rinux_lib::libfdt::{
-    create_empty_tree, open_into, sw_resize, Fdt, FdtMut, FdtSw, FdtError,
-};
+use rinux_lib::libfdt::{Fdt, FdtError, FdtMut, FdtSw, create_empty_tree, open_into, sw_resize};
 
 const BEGIN: u32 = 1;
 const END_NODE: u32 = 2;
@@ -127,7 +125,10 @@ fn sequential_builder_checks_its_state() {
 #[test]
 fn create_rejects_bad_flags_and_small_buffers() {
     let mut buf = vec![0u8; 256];
-    assert_eq!(FdtSw::create(&mut buf, 0x80).err(), Some(FdtError::BadFlags));
+    assert_eq!(
+        FdtSw::create(&mut buf, 0x80).err(),
+        Some(FdtError::BadFlags)
+    );
     let mut small = vec![0u8; 16];
     assert_eq!(FdtSw::create(&mut small, 0).err(), Some(FdtError::NoSpace));
 }
@@ -150,7 +151,10 @@ fn setprop_resizes_and_appends() {
     assert_eq!(m.as_fdt().getprop(root, b"model").unwrap(), b"x\0");
 
     m.setprop(root, b"model", b"longer value\0").unwrap();
-    assert_eq!(m.as_fdt().getprop(root, b"model").unwrap(), b"longer value\0");
+    assert_eq!(
+        m.as_fdt().getprop(root, b"model").unwrap(),
+        b"longer value\0"
+    );
 
     m.appendprop(root, b"compatible", b"baz\0").unwrap();
     let fdt = m.as_fdt();
@@ -169,7 +173,10 @@ fn delprop_and_nop_property_hide_a_property() {
     assert_eq!(m.as_fdt().getprop(root, b"a"), Err(FdtError::NotFound));
     m.delprop(root, b"b").unwrap();
     assert_eq!(m.as_fdt().getprop(root, b"b"), Err(FdtError::NotFound));
-    assert_eq!(m.as_fdt().getprop(root, b"compatible").unwrap(), b"foo\0bar\0");
+    assert_eq!(
+        m.as_fdt().getprop(root, b"compatible").unwrap(),
+        b"foo\0bar\0"
+    );
 }
 
 #[test]
@@ -188,7 +195,10 @@ fn add_and_delete_nodes_and_rename() {
     m.del_node(cpu).unwrap();
     assert_eq!(m.as_fdt().path_offset(b"/cpu@0"), Err(FdtError::NotFound));
     // The phandle lived on the deleted node.
-    assert_eq!(m.as_fdt().node_offset_by_phandle(1), Err(FdtError::NotFound));
+    assert_eq!(
+        m.as_fdt().node_offset_by_phandle(1),
+        Err(FdtError::NotFound)
+    );
 }
 
 #[test]
@@ -210,7 +220,8 @@ fn addrrange_uses_the_default_cells() {
     let mut m = FdtMut::open(&mut buf).unwrap();
     let root = m.as_fdt().path_offset(b"/").unwrap();
     // No #address-cells or #size-cells: 2 and 1, so 12 bytes.
-    m.appendprop_addrrange(root, root, b"reg", 0x1_0000_0000, 0x100).unwrap();
+    m.appendprop_addrrange(root, root, b"reg", 0x1_0000_0000, 0x100)
+        .unwrap();
     let reg = m.as_fdt().getprop(root, b"reg").unwrap();
     assert_eq!(reg.len(), 12);
     assert_eq!(&reg[..8], &0x1_0000_0000u64.to_be_bytes());

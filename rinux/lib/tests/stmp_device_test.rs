@@ -30,10 +30,9 @@ impl StmpRegs for Block {
                     self.value |= STMP_MODULE_CLKGATE;
                 }
             }
-            STMP_OFFSET_REG_CLR
-                if v & self.stuck == 0 => {
-                    self.value &= !v;
-                }
+            STMP_OFFSET_REG_CLR if v & self.stuck == 0 => {
+                self.value &= !v;
+            }
             _ => {}
         }
     }

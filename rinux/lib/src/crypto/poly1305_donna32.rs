@@ -42,7 +42,12 @@ pub fn poly1305_core_setkey(raw: &[u8; 16]) -> Poly1305Key32 {
 
 /// `poly1305_core_blocks()`: absorb whole 16-byte blocks. `hibit` is 1 for
 /// full blocks and 0 for a padded final block.
-pub fn poly1305_core_blocks(state: &mut Poly1305State32, key: &Poly1305Key32, data: &[u8], hibit: u32) {
+pub fn poly1305_core_blocks(
+    state: &mut Poly1305State32,
+    key: &Poly1305Key32,
+    data: &[u8],
+    hibit: u32,
+) {
     if data.is_empty() {
         return;
     }

@@ -4,7 +4,7 @@
 //! every handler run the device has an event pending, so the tick never
 //! stops. The handler matches the kernel's `rearm_tick()`, without the clamp.
 
-use rinux_lib::clockevents::{ClockEventDevice, SetNextEvent, NSEC_PER_SEC};
+use rinux_lib::clockevents::{ClockEventDevice, NSEC_PER_SEC, SetNextEvent};
 
 const RATE: u64 = 1_193_182;
 const PERIOD_NS: i64 = 1_000_000;
@@ -41,7 +41,10 @@ fn the_tick_always_has_an_event_pending() {
         retries: 0,
         shutdown: false,
     };
-    let mut pit = Pit { pending: None, now: 0 };
+    let mut pit = Pit {
+        pending: None,
+        now: 0,
+    };
     dev.program_event(&mut pit, PERIOD_NS, 0, true).unwrap();
 
     // A small LCG gives a repeatable spread of handler latencies, up to
@@ -53,7 +56,9 @@ fn the_tick_always_has_an_event_pending() {
             panic!("step {step}: no event pending, the tick has stopped");
         });
         dev.event_fired();
-        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        seed = seed
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         let latency = ((seed >> 33) % 1_500_000) as i64;
 
         // The handler runs `latency` ns after the fire.
@@ -91,7 +96,10 @@ fn a_stale_forced_flag_leaves_the_device_idle() {
         retries: 0,
         shutdown: false,
     };
-    let mut pit = Pit { pending: None, now: 0 };
+    let mut pit = Pit {
+        pending: None,
+        now: 0,
+    };
     // A late handler: the expiry is already in the past, so the forced path
     // arms the minimum delta and sets the flag.
     dev.program_event(&mut pit, -500_000, 0, true).unwrap();
@@ -102,7 +110,10 @@ fn a_stale_forced_flag_leaves_the_device_idle() {
     // Handler without event_fired(): a deadline within the minimum delta
     // takes the forced path, which the stale flag short-circuits.
     dev.program_event(&mut pit, 5_000, 0, true).unwrap();
-    assert!(pit.pending.is_none(), "stale flag must leave the device idle");
+    assert!(
+        pit.pending.is_none(),
+        "stale flag must leave the device idle"
+    );
 
     // Handler with event_fired(): the same deadline arms the minimum delta.
     dev.event_fired();

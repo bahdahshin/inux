@@ -3,7 +3,7 @@
 //! century rules, and a round trip through `mktime64`.
 
 use rinux_lib::mktime::mktime64;
-use rinux_lib::timeconv::{time64_to_tm, Tm};
+use rinux_lib::timeconv::{Tm, time64_to_tm};
 
 #[allow(clippy::too_many_arguments)]
 fn tm(sec: i32, min: i32, hour: i32, mday: i32, mon: i32, year: i32, wday: i32, yday: i32) -> Tm {
@@ -38,7 +38,10 @@ fn leap_day_in_a_century_that_divides_by_400() {
 #[test]
 fn a_famous_timestamp() {
     // 2009-02-13 23:31:30 UTC, a Friday, day 43 of the year.
-    assert_eq!(time64_to_tm(1_234_567_890, 0), tm(30, 31, 23, 13, 1, 109, 5, 43));
+    assert_eq!(
+        time64_to_tm(1_234_567_890, 0),
+        tm(30, 31, 23, 13, 1, 109, 5, 43)
+    );
 }
 
 #[test]
