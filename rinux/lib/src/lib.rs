@@ -75,6 +75,7 @@ pub mod is_single_threaded;
 pub mod kfifo;
 pub mod klist;
 pub mod kstrtox;
+pub mod libfdt;
 pub mod libgcc;
 pub mod linear_ranges;
 pub mod list;
