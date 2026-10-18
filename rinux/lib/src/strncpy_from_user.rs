@@ -16,6 +16,7 @@ use crate::errno::{EFAULT, Errno};
 ///
 /// `read(addr)` gives the user byte at `addr`, or `None` for a fault.
 /// A fault before `count` bytes is `EFAULT`, as in C.
+#[allow(clippy::needless_range_loop)]
 pub fn strncpy_from_user(
     dst: &mut [u8],
     count: usize,

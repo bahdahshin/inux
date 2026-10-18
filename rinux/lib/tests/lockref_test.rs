@@ -44,7 +44,7 @@ fn put_or_lock_leaves_the_lock_held_for_the_last_reference() {
     assert_eq!(r.count(), 1);
     // The lock is held, so the fast path cannot run; release it first.
     r.unlock();
-    assert_eq!(r.get_not_zero(), true);
+    assert!(r.get_not_zero());
 }
 
 #[test]

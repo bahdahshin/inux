@@ -29,6 +29,7 @@ pub fn poly1305_core_setkey(raw: &[u8; 16]) -> Poly1305Key {
     let t1 = u64::from_le_bytes(raw[8..16].try_into().unwrap());
     let r0 = t0 & 0xffc_0fff_ffff;
     let r1 = ((t0 >> 44) | (t1 << 20)) & 0xfff_ffc0_ffff;
+    #[allow(clippy::unusual_byte_groupings)]
     let r2 = (t1 >> 24) & 0x00ff_ffff_c0f;
     Poly1305Key {
         r: [r0, r1, r2],

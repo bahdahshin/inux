@@ -52,7 +52,7 @@ impl Refcount {
     /// overflow.
     pub fn add(&self, i: i32) {
         let old = self.refs.fetch_add(i, Ordering::Relaxed);
-        if old == 0 || old < 0 || old.wrapping_add(i) < 0 {
+        if old <= 0 || old.wrapping_add(i) < 0 {
             self.saturate();
         }
     }

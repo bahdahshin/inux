@@ -38,8 +38,8 @@ impl<T, const N: usize> PerCpu<T, N> {
     }
 
     /// `DEFINE_PER_CPU()`: `init(cpu)` gives each CPU its starting value.
-    pub fn new(mut init: impl FnMut(usize) -> T) -> Self {
-        Self::from_array(core::array::from_fn(|cpu| init(cpu)))
+    pub fn new(init: impl FnMut(usize) -> T) -> Self {
+        Self::from_array(core::array::from_fn(init))
     }
 
     /// The number of CPUs (slots).

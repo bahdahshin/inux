@@ -70,10 +70,11 @@ fn update_inv_weight(lw: &mut LoadWeight) {
     let w = scale_load_down(lw.weight);
     lw.inv_weight = if w >= u64::from(WMULT_CONST) {
         1
-    } else if w == 0 {
-        WMULT_CONST
     } else {
-        (u64::from(WMULT_CONST) / w) as u32
+        // A zero weight gives the largest inverse weight, as C does.
+        u64::from(WMULT_CONST)
+            .checked_div(w)
+            .map_or(WMULT_CONST, |q| q as u32)
     };
 }
 

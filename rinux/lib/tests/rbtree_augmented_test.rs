@@ -118,6 +118,7 @@ unsafe fn check(root: *mut RbRoot, expected: &[u32]) {
 }
 
 #[test]
+#[allow(clippy::needless_range_loop)]
 fn augmented_maxima_survive_random_inserts_and_erases() {
     let mut rnd = RndState::new(1);
     for round in 0..20 {

@@ -23,6 +23,7 @@ fn every_registered_oid_is_found() {
 }
 
 #[test]
+#[allow(clippy::needless_range_loop)]
 fn every_registered_oid_prints_its_dotted_form() {
     let mut buf = [0u8; 64];
     for i in 0..OID_NR {

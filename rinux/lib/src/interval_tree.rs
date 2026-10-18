@@ -24,7 +24,6 @@ use crate::rbtree::{
 /// `struct interval_tree_node`: an interval `[start, last]` (inclusive) and
 /// the largest `last` in its subtree.
 #[repr(C)]
-
 pub struct IntervalNode {
     /// The red-black tree link.
     pub rb: RbNode,

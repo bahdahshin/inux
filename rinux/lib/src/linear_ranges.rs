@@ -103,11 +103,9 @@ pub fn linear_range_get_selector_low(
 
     *found = true;
 
-    *selector = if r.step == 0 {
-        r.min_sel
-    } else {
-        (val - r.min) / r.step + r.min_sel
-    };
+    *selector = (val - r.min)
+        .checked_div(r.step)
+        .map_or(r.min_sel, |q| q + r.min_sel);
     Ok(())
 }
 
@@ -189,9 +187,7 @@ pub fn linear_range_get_selector_within(r: &LinearRange, val: u32, selector: &mu
         *selector = r.max_sel;
         return;
     }
-    *selector = if r.step == 0 {
-        r.min_sel
-    } else {
-        (val - r.min) / r.step + r.min_sel
-    };
+    *selector = (val - r.min)
+        .checked_div(r.step)
+        .map_or(r.min_sel, |q| q + r.min_sel);
 }

@@ -7,6 +7,7 @@ use rinux_lib::crypto::mpi_sqr::{mpih_sqr_n_basecase, mul_n_basecase};
 
 /// Reference product of `a` and `b`: each pair of limbs adds its 128-bit
 /// product at the right limb position, carrying as it goes.
+#[allow(clippy::needless_range_loop)]
 fn reference_mul(a: &[u64], b: &[u64]) -> Vec<u64> {
     let mut out = vec![0u64; a.len() + b.len()];
     for i in 0..a.len() {

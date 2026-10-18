@@ -90,6 +90,7 @@ fn round(x0: u32, x1: u32, x2: u32, x3: u32, rk: u32) -> u32 {
 }
 
 /// `sm4_expandkey()`: derive both round-key schedules from a 16-byte key.
+#[allow(clippy::needless_range_loop)]
 pub fn sm4_expandkey(key: &[u8; SM4_KEY_SIZE]) -> Sm4Ctx {
     let kw: [u32; 4] =
         core::array::from_fn(|i| u32::from_be_bytes(key[4 * i..4 * i + 4].try_into().unwrap()));

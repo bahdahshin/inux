@@ -27,7 +27,7 @@ fn a_more_urgent_task_gets_a_higher_level() {
 fn priorities_outside_the_scale_are_refused() {
     assert_eq!(convert_prio(-2), None);
     assert_eq!(convert_prio(101), None);
-    assert!(CPUPRI_NR_PRIORITIES == 101);
+    const _: () = assert!(CPUPRI_NR_PRIORITIES == 101);
 }
 
 #[test]

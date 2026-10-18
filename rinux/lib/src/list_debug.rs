@@ -77,10 +77,10 @@ pub unsafe fn list_add_valid_or_report(
     }
     // SAFETY: prev and next are non-null and, by the caller's contract, live.
     unsafe {
-        if (*next).prev as *const ListHead != prev {
+        if !core::ptr::eq((*next).prev, prev) {
             return Err(ListCorruption::AddNextPrevMismatch);
         }
-        if (*prev).next as *const ListHead != next {
+        if !core::ptr::eq((*prev).next, next) {
             return Err(ListCorruption::AddPrevNextMismatch);
         }
     }
@@ -118,10 +118,10 @@ pub unsafe fn list_del_entry_valid_or_report(entry: *const ListHead) -> Result<(
     }
     // SAFETY: prev and next are non-null and, by the caller's contract, live.
     unsafe {
-        if (*prev).next as *const ListHead != entry {
+        if !core::ptr::eq((*prev).next, entry) {
             return Err(ListCorruption::DelPrevNextMismatch);
         }
-        if (*next).prev as *const ListHead != entry {
+        if !core::ptr::eq((*next).prev, entry) {
             return Err(ListCorruption::DelNextPrevMismatch);
         }
     }
