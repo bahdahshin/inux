@@ -3,6 +3,7 @@
 
 pub mod clocksource;
 pub mod jiffies;
+pub mod sleep_timeout;
 pub mod tick_common;
 pub mod timekeeping;
 

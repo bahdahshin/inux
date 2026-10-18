@@ -168,6 +168,7 @@ pub fn start_kernel() -> ! {
     crate::rinux::selftest::check_lib_hooks();
     crate::rinux::selftest::check_mm();
     crate::rinux::selftest::check_sched();
+    crate::rinux::selftest::check_sleep_timeout();
     crate::rinux::selftest::check_preempt();
     crate::rinux::selftest::check_fs();
     crate::rinux::selftest::check_dev();

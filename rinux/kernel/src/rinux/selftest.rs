@@ -162,6 +162,71 @@ mod preempt_demo {
 
 /// Checks timer-driven preemption: two non-yielding kernel threads must
 /// still interleave because the tick preempts them at the end of each slice.
+/// Set once the sleep_timeout thread has reported.
+static SLEEP_TIMEOUT_DONE: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+
+/// The sleep_timeout check body, run in a kernel thread: a sleep blocks the
+/// running task, which must not be the boot task (the idle task).
+extern "C" fn sleep_timeout_check(_arg: u64) -> i32 {
+    use crate::kernel::time::jiffies::jiffies;
+    use crate::kernel::time::sleep_timeout::{msleep, schedule_timeout};
+    use core::sync::atomic::Ordering;
+
+    let j0 = jiffies();
+    let negative_ret = schedule_timeout(-1);
+    let negative_jiffies = jiffies().wrapping_sub(j0);
+
+    let j1 = jiffies();
+    let ret = schedule_timeout(20);
+    let slept = jiffies().wrapping_sub(j1);
+
+    let j2 = jiffies();
+    msleep(30);
+    let msleep_slept = jiffies().wrapping_sub(j2);
+
+    let ok = negative_ret == 0 && negative_jiffies <= 1 && ret == 0 && slept >= 20 && msleep_slept >= 30;
+    if ok {
+        pr_info!(
+            "rinux: sleep_timeout: schedule_timeout(20) slept {} jiffies, msleep(30) slept {} jiffies",
+            slept,
+            msleep_slept
+        );
+    } else {
+        pr_err!(
+            "rinux: sleep_timeout: FAILED (negative ret {}, slept {}, ret {}, msleep slept {})",
+            negative_ret,
+            slept,
+            ret,
+            msleep_slept
+        );
+    }
+    SLEEP_TIMEOUT_DONE.store(true, Ordering::Release);
+    0
+}
+
+/// Checks `schedule_timeout()` and `msleep()`: a negative timeout returns at
+/// once, a timeout sleeps for at least its jiffies and returns 0, and `msleep`
+/// sleeps for at least its milliseconds. The check runs in a kernel thread,
+/// and the boot task yields until it reports.
+pub fn check_sleep_timeout() {
+    use crate::kernel::kthread::kthread_run;
+    use crate::kernel::sched::core::schedule;
+    use crate::kernel::time::jiffies::{HZ, jiffies};
+    use core::sync::atomic::Ordering;
+
+    if kthread_run(sleep_timeout_check, 0, b"sleep_timeout").is_null() {
+        pr_err!("rinux: sleep_timeout: failed to start the check thread");
+        return;
+    }
+    let deadline = jiffies() + 5 * HZ;
+    while !SLEEP_TIMEOUT_DONE.load(Ordering::Acquire) && jiffies() < deadline {
+        schedule();
+    }
+    if !SLEEP_TIMEOUT_DONE.load(Ordering::Acquire) {
+        pr_err!("rinux: sleep_timeout: FAILED (check thread did not finish)");
+    }
+}
+
 pub fn check_preempt() {
     use crate::kernel::kthread::kthread_run;
     use crate::kernel::sched::core::schedule;
