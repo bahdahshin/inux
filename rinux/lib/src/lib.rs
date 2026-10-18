@@ -93,6 +93,7 @@ pub mod min_heap;
 pub mod mktime;
 pub mod muldi3;
 pub mod net_utils;
+pub mod ntp;
 pub mod oid_registry;
 pub mod oid_registry_data;
 pub mod packing;
