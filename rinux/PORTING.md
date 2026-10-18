@@ -380,9 +380,9 @@ or `test` (a C test file ported to Rust tests).
 | `lib/math/test_div64.c` | `lib/tests/test_div64.rs` | test | the full 12 x 12 table through `do_div()` and `__div64_32()` |
 | `include/linux/bitfield.h` | `lib/src/bitfield.rs` | done | `FIELD_*` as generic functions over `Field`; compile-time checks become a panic on a bad mask |
 | `lib/tests/bitfield_kunit.c` | `lib/tests/bitfield_kunit.rs` | test | all `CHECK_ENC_GET` and `CHECK` cases, plus `FIELD_*`, `replace_bits` and the bad-mask panic |
-| `include/linux/compiler.h` (`is_signed_type`) | `lib/src/is_signed_type.rs` | done | trait over the integer, bool, char and raw-pointer types |
+| `include/linux/compiler.h` | `lib/src/is_signed_type.rs` | done | ``is_signed_type``: trait over the integer, bool, char and raw-pointer types|
 | `lib/tests/is_signed_type_kunit.c` | `lib/tests/is_signed_type_kunit.rs` | test | the full C type table; the enums are modelled with matching `repr` |
-| `include/linux/util_macros.h` (`find_closest`) | `lib/src/util_macros.rs` | done | `find_closest()` and `find_closest_descending()` over slices |
+| `include/linux/util_macros.h` | `lib/src/util_macros.rs` | done | ``find_closest``: `find_closest()` and `find_closest_descending()` over slices|
 | `lib/tests/util_macros_kunit.c` | `lib/tests/util_macros_kunit.rs` | test | every range of the ascending and descending tables |
 | `lib/test_ida.c` | `lib/tests/test_ida_test.rs` | test | the parts that fit a fixed bitmap; max-id, destroy and find_first wait for a growing IDA |
 | `lib/test_memcat_p.c` | `lib/tests/test_memcat_p_test.rs` | test | |
@@ -525,17 +525,17 @@ or `test` (a C test file ported to Rust tests).
 | `include/linux/jiffies.h` | `kernel/src/kernel/time/jiffies.rs` | partial | `INITIAL_JIFFIES`, `HZ` |
 | `kernel/time/time.c` | `lib/src/mktime.rs` | partial | `mktime64()` (host-tested); `sys_gettimeofday` (`struct timeval` from `ktime_get_real_ts64`) is in `kernel/src/kernel/syscalls.rs` |
 | `kernel/time/timekeeping.c` | `kernel/src/kernel/time/timekeeping.rs` | partial | boot wall-clock anchor from the RTC; `timekeeping_init()`, `ktime_get_real_ts64()` over jiffies |
-| `kernel/time/timer.c` (wheel index) | `lib/src/timer_wheel.rs` | partial | `calc_wheel_index()` and `calc_index()`; the wheel queues and expiry are not ported |
-| `kernel/time/ntp.c` (frequency discipline) | `lib/src/ntp.rs` | partial | `ntp_update_frequency()`, `ntp_update_offset()`, `ntp_update_offset_fll()`; `second_overflow()`, drain/skew, RTC sync, PPS and `adjtimex` are not ported |
-| `kernel/time/namespace.c` (offset math) | `lib/src/time_namespace.rs` | partial | `do_timens_ktime_to_host()` and the monotonic and boottime offset helpers; the namespace objects and `/proc` are not ported |
-| `kernel/time/clockevents.c` (programming core) | `lib/src/clockevents.rs` | partial | `cev_delta2ns()`, the min-delta retry, `program_event()` and `event_fired()` over `SetNextEvent`; the PIT is the tick's clock event device (steps 150 to 152); the registry, sysfs and the coupled paths are not ported |
+| `kernel/time/timer.c` | `lib/src/timer_wheel.rs` | partial | `wheel index`: `calc_wheel_index()` and `calc_index()`; the wheel queues and expiry are not ported|
+| `kernel/time/ntp.c` | `lib/src/ntp.rs` | partial | `frequency discipline`: `ntp_update_frequency()`, `ntp_update_offset()`, `ntp_update_offset_fll()`; `second_overflow()`, drain/skew, RTC sync, PPS and `adjtimex` are not ported|
+| `kernel/time/namespace.c` | `lib/src/time_namespace.rs` | partial | `offset math`: `do_timens_ktime_to_host()` and the monotonic and boottime offset helpers; the namespace objects and `/proc` are not ported|
+| `kernel/time/clockevents.c` | `lib/src/clockevents.rs` | partial | `programming core`: `cev_delta2ns()`, the min-delta retry, `program_event()` and `event_fired()` over `SetNextEvent`; the PIT is the tick's clock event device (steps 150 to 152); the registry, sysfs and the coupled paths are not ported|
 | `kernel/time/timeconv.c` | `lib/src/timeconv.rs` | done | `time64_to_tm()` with the `Tm` struct, C's widths and wrapping kept |
 | `kernel/time/sleep_timeout.c` | `kernel/src/kernel/time/sleep_timeout.rs` | partial | `schedule_timeout()`, `schedule_timeout_uninterruptible()`, `msleep()`, `msecs_to_jiffies()`; the interruptible, killable, idle and hrtimer-range forms are not ported |
 | `kernel/time/timecounter.c` | `lib/src/timecounter.rs` | done | `Timecounter` over a `Cyclecounter` whose `read` is a closure; `cyclecounter_cyc2ns()` from `include/linux/timecounter.h`; `timecounter_cyc2time()` not ported |
 | `kernel/time/time_test.c` | `lib/tests/time_test.rs` | test | the 80000-year day-by-day `time64_to_tm()` range test |
 | `kernel/time/posix-timers.c` | `kernel/src/kernel/syscalls.rs` | partial | `sys_clock_gettime` for `CLOCK_REALTIME`/`CLOCK_MONOTONIC` |
 | `kernel/time/hrtimer.c` | `kernel/src/kernel/syscalls.rs` | partial | `sys_nanosleep`: round up to whole jiffies, then sleep the task (`sleep_until()`), which the tick wakes at its deadline so other tasks run meanwhile; no `hrtimer` arming, so the wake is tick-granular |
-| `kernel/time/hrtimer.c` (queue core) | `lib/src/hrtimer.rs` | partial | `hrtimer_forward()` and an expiry-ordered `TimerQueue` (start, cancel, next expiry, pop expired); not yet used by the kernel's nanosleep, which still uses `sleep_until()` |
+| `kernel/time/hrtimer.c` | `lib/src/hrtimer.rs` | partial | `queue core`: `hrtimer_forward()` and an expiry-ordered `TimerQueue` (start, cancel, next expiry, pop expired); not yet used by the kernel's nanosleep, which still uses `sleep_until()`|
 | `include/uapi/linux/time.h` | `kernel/src/kernel/syscalls.rs` | partial | `CLOCK_REALTIME`, `CLOCK_MONOTONIC`, `struct timespec`/`timeval` layout |
 | `kernel/sched/clock.c` | `kernel/src/kernel/sched/clock.rs` | partial | `local_clock()` for one CPU with a stable clock |
 | `include/linux/list.h` | `lib/src/list.rs` | partial | intrusive list: add/del, del_init, iteration; hlist and RCU variants pending |
@@ -574,20 +574,20 @@ or `test` (a C test file ported to Rust tests).
 | `arch/x86/entry/entry_64.S` | `kernel/src/arch/x86/kernel/process.rs` | partial | __switch_to_asm and the new-thread trampoline (ret_from_fork_asm); also the idtentry stubs in entry/ |
 | `arch/x86/include/asm/switch_to.h` | `kernel/src/arch/x86/kernel/process.rs` | partial | inactive_task_frame layout, kthread_frame_init |
 | `arch/x86/kernel/process.c` | `kernel/src/arch/x86/kernel/process.rs` | partial | copy_thread for kernel threads and `start_thread()` (ring-3 entry via iretq); FPU, FS/GS and TLS pending |
-| `kernel/sched/fair.c` (weights and delta) | `lib/src/sched_fair.rs` | partial | the CFS load-weight tables (`sched_prio_to_weight`, `sched_prio_to_wmult`, copied by script), `scale_load`/`scale_load_down`, `__update_inv_weight()`, `__calc_delta()` and `calc_delta_fair()`; the runqueue, pick and enqueue logic waits for the kernel's scheduler |
-| `kernel/sched/core.c` (weight tables) | `lib/src/sched_fair.rs` | done | `sched_prio_to_weight` and `sched_prio_to_wmult`, extracted from the C source |
+| `kernel/sched/fair.c` | `lib/src/sched_fair.rs` | partial | `weights and delta`: the CFS load-weight tables (`sched_prio_to_weight`, `sched_prio_to_wmult`, copied by script), `scale_load`/`scale_load_down`, `__update_inv_weight()`, `__calc_delta()` and `calc_delta_fair()`; the runqueue, pick and enqueue logic waits for the kernel's scheduler|
+| `kernel/sched/core.c` | `lib/src/sched_fair.rs` | done | `weight tables`: `sched_prio_to_weight` and `sched_prio_to_wmult`, extracted from the C source|
 | `kernel/sched/core.c` | `kernel/src/kernel/sched/core.rs` | partial | runqueue, __schedule/context_switch/finish_task_switch, schedule(), wake_up_new_task, sched_tick, do_exit, kernel_thread, cpu idle loop, sched_init; round-robin only, one CPU, no CFS/EEVDF, load balancing or mm switch |
-| `kernel/sched/sched.h` (`rt_prio_array`) | `lib/src/sched_rt_prio.rs` | partial | the RT priority array: one FIFO per priority over entity ids, a bitmap with the delimiter bit, enqueue, dequeue and the highest-priority pick; the rt_rq and bandwidth logic wait |
-| `kernel/sched/cputime.c` (`cputime_adjust`) | `lib/src/cputime.rs` | partial | the monotonic split of precise runtime into user and system time, with the sample and previous state explicit; the per-task lock and the tick accounting wait for the scheduler |
-| `kernel/sched/deadline.c` (CBS rules) | `lib/src/sched_dl_cbs.rs` | partial | `replenish_dl_new_period()`, `replenish_dl_entity()` and `dl_entity_overflow()` over explicit parameters; the deferred-server, yield and tracing paths and the rq clock wait for the scheduler |
-| `kernel/sched/sched.h` (`DL_SCALE`) | `lib/src/sched_dl_cbs.rs` | done | the overflow scale |
+| `kernel/sched/sched.h` | `lib/src/sched_rt_prio.rs` | partial | ``rt_prio_array``: the RT priority array: one FIFO per priority over entity ids, a bitmap with the delimiter bit, enqueue, dequeue and the highest-priority pick; the rt_rq and bandwidth logic wait|
+| `kernel/sched/cputime.c` | `lib/src/cputime.rs` | partial | ``cputime_adjust``: the monotonic split of precise runtime into user and system time, with the sample and previous state explicit; the per-task lock and the tick accounting wait for the scheduler|
+| `kernel/sched/deadline.c` | `lib/src/sched_dl_cbs.rs` | partial | `CBS rules`: `replenish_dl_new_period()`, `replenish_dl_entity()` and `dl_entity_overflow()` over explicit parameters; the deferred-server, yield and tracing paths and the rq clock wait for the scheduler|
+| `kernel/sched/sched.h` | `lib/src/sched_dl_cbs.rs` | done | ``DL_SCALE``: the overflow scale|
 | `kernel/sched/cpupri.c` | `lib/src/cpupri.rs` | partial | `convert_prio()`, `cpupri_set()` and `cpupri_find()` without a fitness function, over per-level membership; the cpumask-based fitness search and the atomics wait |
 | `kernel/sched/cpupri.h` | `lib/src/cpupri.rs` | done | the level constants |
 | `kernel/sched/completion.c` | `lib/src/completion.rs` | done | `complete()`, `complete_all()`, `try_wait_for_completion()`, `completion_done()` over an atomic count with C's UINT_MAX meaning, and the blocking wait and wake over a `TaskBlocker` (`wait_for_completion()`, `complete_wake()`); the spinlock is the caller's, as C's lock is released inside `schedule()` |
 | `include/linux/completion.h` | `lib/src/completion.rs` | partial | the count and its states; the wait queue member waits |
 | `include/linux/sched/prio.h` | `lib/src/sched_prio.rs` | done | the nice and priority constants, the conversions, and the policy numbers used by `normal_prio()` |
-| `kernel/sched/syscalls.c` (`__normal_prio`) | `lib/src/sched_prio.rs` | done | `normal_prio()`: deadline, then real-time by rt priority, then nice |
-| `kernel/sched/sched.h` (`uclamp_bucket_id`) | `lib/src/sched_uclamp.rs` | done | `UCLAMP_BUCKET_DELTA`, `uclamp_bucket_id()` and `DIV_ROUND_CLOSEST`, with the default five-bucket count from `init/Kconfig` |
+| `kernel/sched/syscalls.c` | `lib/src/sched_prio.rs` | done | ``__normal_prio``: `normal_prio()`: deadline, then real-time by rt priority, then nice|
+| `kernel/sched/sched.h` | `lib/src/sched_uclamp.rs` | done | ``uclamp_bucket_id``: `UCLAMP_BUCKET_DELTA`, `uclamp_bucket_id()` and `DIV_ROUND_CLOSEST`, with the default five-bucket count from `init/Kconfig`|
 | `kernel/sched/cpudeadline.c` | `lib/src/cpudl.rs` | partial | `cpudl_set()`, `cpudl_clear()`, `cpudl_maximum()` and the heapify functions over CPU ids, with `find()` without a mask; the cpumask search with capacity fitting and the lock wait |
 | `kernel/sched/loadavg.c` | `lib/src/loadavg.rs` | partial | `calc_load()`, `fixed_power_int()`, `calc_load_n()`, the `avenrun[]` update and `LOAD_INT`/`LOAD_FRAC`; the NO_HZ folding and the per-CPU active counts wait for the scheduler |
 | `include/linux/sched/loadavg.h` | `lib/src/loadavg.rs` | done | `FSHIFT`, `FIXED_1`, `EXP_1`, `EXP_5`, `EXP_15` and the load macros |
@@ -746,13 +746,13 @@ or `test` (a C test file ported to Rust tests).
 | `lib/net_utils.c` | `lib/src/net_utils.rs` | done | `mac_pton()` returns `Option<[u8; 6]>`, so a bad string writes nothing |
 | `lib/clz_tab.c` | `lib/src/clz_tab.rs` | done | the 256-byte table built at compile time from its rule (bit length of the index) |
 | `lib/memcat_p.c` | `lib/src/memcat_p.rs` | done | `memcat_p()` over slices into a caller buffer; the NULL terminators become slice ends |
-| `include/linux/string.h` (`memcat_p`) | `lib/src/memcat_p.rs` | done | the macro is the function |
+| `include/linux/string.h` | `lib/src/memcat_p.rs` | done | ``memcat_p``: the macro is the function|
 | `lib/bust_spinlocks.c` | `lib/src/bust_spinlocks.rs` | done | the oops counter; the console unblank and klogd wake are passed in as closures until those subsystems exist |
 | `lib/muldi3.c` | `lib/src/muldi3.rs` | done | `umul_ppmm()`, `umulsidi3()` and `muldi3()` as the same 16-bit-piece algorithm; the cross-term sum wraps as the C does |
 | `lib/min_heap.c` | `lib/src/min_heap.rs` | done | `MinHeap<T>` over a caller slice with a `less` closure; the header's sift, heapify, pop, pop-push, push and delete algorithms, step for step |
 | `include/linux/min_heap.h` | `lib/src/min_heap.rs` | done | the byte-offset and `min_heap_callbacks` machinery becomes the generic type and the closure |
 | `lib/memregion.c` | `lib/src/memregion.rs` | done | `memregion_alloc()` and `memregion_free()` take the allocator as a parameter instead of a static |
-| `lib/idr.c` (`ida_*`) | `lib/src/ida.rs` | partial | `Ida<N>`: `ida_alloc()`, `ida_alloc_range()` and `ida_free()` over a fixed bitmap; the radix tree and the IDR pointer mapping wait |
+| `lib/idr.c` | `lib/src/ida.rs` | partial | ``ida_*``: `Ida<N>`: `ida_alloc()`, `ida_alloc_range()` and `ida_free()` over a fixed bitmap; the radix tree and the IDR pointer mapping wait|
 | `lib/crypto/arc4.c` | `lib/src/crypto/arc4.rs` | partial | `Arc4Ctx::new()` (`arc4_setkey()`) and `crypt()` (`arc4_crypt()`), checked against published vectors; the `ecb(arc4)` lskcipher registration in `crypto/arc4.c` waits for the crypto API |
 | `include/crypto/arc4.h` | `lib/src/crypto/arc4.rs` | done | the key-size limits and block size as constants |
 | `lib/crypto/chacha.c` | `lib/src/crypto/chacha.rs` | done | `ChachaState::new()`, `block()`, `crypt()` and `hchacha_block()` as the generic code; the SIMD versions compute the same bytes and are not ported |
@@ -767,15 +767,15 @@ or `test` (a C test file ported to Rust tests).
 | `lib/crypto/mpi/generic_mpih-mul2.c` | `lib/src/crypto/mpi_mul.rs` | done | `mpihelp_addmul_1()`, adding the product into `res` |
 | `lib/crypto/mpi/generic_mpih-mul3.c` | `lib/src/crypto/mpi_mul.rs` | done | `mpihelp_submul_1()`, subtracting the product from `res` |
 | `lib/crypto/mpi/mpi-cmp.c` | `lib/src/crypto/mpi_obj.rs` | done | `mpi_cmp()` and `mpi_cmp_ui()` on the `Mpi` view |
-| `include/linux/mpi.h` (`struct gcry_mpi`) | `lib/src/crypto/mpi_obj.rs` | partial | `Mpi` borrows its limbs; `alloced`, flags and the allocating constructors wait for an allocator |
-| `lib/crypto/mpi/mpi-bit.c` (`mpi_normalize`) | `lib/src/crypto/mpi_obj.rs` | partial | `Mpi::normalize()`; the bit-count and shift functions of mpi-bit.c are not ported |
+| `include/linux/mpi.h` | `lib/src/crypto/mpi_obj.rs` | partial | ``struct gcry_mpi``: `Mpi` borrows its limbs; `alloced`, flags and the allocating constructors wait for an allocator|
+| `lib/crypto/mpi/mpi-bit.c` | `lib/src/crypto/mpi_obj.rs` | partial | ``mpi_normalize``: `Mpi::normalize()`; the bit-count and shift functions of mpi-bit.c are not ported|
 | `lib/crypto/hash_info.c` | `lib/src/crypto/hash_info.rs` | done | `HashAlgo::name()` and `HashAlgo::digest_size()` as matches on the enum, in the C enum order |
 | `include/uapi/linux/hash_info.h` | `lib/src/crypto/hash_info.rs` | done | `enum hash_algo` as `HashAlgo` |
 | `lib/crypto/mpi/mpi-sub-ui.c` | `lib/src/crypto/mpi_sub_ui.rs` | done | `mpi_sub_ui()` with fixed storage: `mpi_resize()` becomes an `ENOMEM` check; the limb add and subtract loops are inline until `mpih-add1`/`sub1` helpers land |
 | `lib/crypto/mpi/mpi-add.c` | `lib/src/crypto/mpi_add.rs` | done | `mpi_add()` and `mpi_sub()` with fixed storage: `RESIZE_IF_NEEDED` becomes an `ENOMEM` check, and `mpi_sub` flips the sign of `v` instead of copying it; the general limb add and sub are inline until `mpih-add`/`sub` land. `mpi_addm`/`mpi_subm` wait for `mpi_mod` |
 | `lib/crypto/mpi/mpi-bit.c` | `lib/src/crypto/mpi_bit.rs` | partial | `get_nbits()`, `test_bit()`, `set_bit()` (ENOMEM beyond storage) and `mpi_rshift()`, with the in-place mode left to the caller; host tests against u128 bit arithmetic |
-| `lib/crypto/mpi/mpih-mul.c` (`mul_n_basecase`, `mpih_sqr_n_basecase`) | `lib/src/crypto/mpi_sqr.rs` | partial | the schoolbook product and its squaring; the Karatsuba `mul_n`, `mpih_sqr_n` and `mpih_mul` wait |
-| `include/linux/percpu-defs.h` (`DEFINE_PER_CPU`, `per_cpu_ptr`) | `lib/src/percpu.rs` | partial | `PerCpu<T, N>`: one slot per CPU with `get_mut()` (safe) and `with_cpu()` (unsafe, with the this_cpu rule); the kernel does not use it yet, as rinux runs one CPU and the per-CPU offsets wait |
+| `lib/crypto/mpi/mpih-mul.c` | `lib/src/crypto/mpi_sqr.rs` | partial | ``mul_n_basecase`, `mpih_sqr_n_basecase``: the schoolbook product and its squaring; the Karatsuba `mul_n`, `mpih_sqr_n` and `mpih_mul` wait|
+| `include/linux/percpu-defs.h` | `lib/src/percpu.rs` | partial | ``DEFINE_PER_CPU`, `per_cpu_ptr``: `PerCpu<T, N>`: one slot per CPU with `get_mut()` (safe) and `with_cpu()` (unsafe, with the this_cpu rule); the kernel does not use it yet, as rinux runs one CPU and the per-CPU offsets wait|
 | `lib/irq_regs.c` | `kernel/src/kernel/irq/regs.rs` | done | `get_irq_regs()` and `set_irq_regs()` over a `PerCpu` slot holding the frame address; the `DEFINE_PER_CPU` storage is the slot |
 | `include/asm-generic/irq_regs.h` | `kernel/src/kernel/irq/regs.rs` | done | the accessors; the `Option` return stands in for the null pointer |
 | `lib/lockref.c` | `lib/src/lockref.rs` | done | `Lockref` with lock and count in one `AtomicU64`; the `CMPXCHG_LOOP` with 100 retries and the lock fallback; `put_return()` and `put_or_lock()` keep C's return conventions |
@@ -819,7 +819,7 @@ or `test` (a C test file ported to Rust tests).
 | errseq tests | `lib/tests/errseq_test.rs` | test | host tests for the sample/set/check protocol and the counter rules |
 | `lib/oid_registry.c` | `lib/src/oid_registry.rs` | done | `look_up_oid()`, `sprint_oid()` (snprintf truncation as `Snprintf`); `parse_oid()` only checks the TLV, as the C never sets its output |
 | `include/linux/oid_registry.h` | `lib/src/oid_registry_data.rs` | done | the `Oid` enum and the names, generated by `scripts/gen_oid_registry.py` |
-| `lib/oid_registry_data.c` (generated at build) | `lib/src/oid_registry_data.rs` | done | the search table, index and data, generated with the same hash and sort order |
+| `lib/oid_registry_data.c` (generated at build) | `lib/src/oid_registry_data.rs` | done | `generated at build`: the search table, index and data, generated with the same hash and sort order|
 | OID registry tests | `lib/tests/oid_registry_test.rs` | test | every entry round-trips through lookup and printing; an RSA OID by hand; truncation, malformed content and TLV checks |
 | `lib/list_debug.c` | `lib/src/list_debug.rs` | done | `list_add_valid_or_report()` and `list_del_entry_valid_or_report()` returning the first failed check as `ListCorruption`; the `CHECK_DATA_CORRUPTION` printk and stack dump are left to the caller |
 | list debug tests | `lib/tests/list_debug_test.rs` | test | a valid ring passes; each add and del check fires in C order with the poison values |
@@ -829,7 +829,7 @@ or `test` (a C test file ported to Rust tests).
 | atomic64 tests | `lib/tests/atomic64_test.rs` | test | each operation's result, `dec_if_positive` at zero, `add_unless` and `inc_not_zero`, and a 4-thread count |
 | `lib/dim/dim.c` | `lib/src/dim.rs` | done | `dim_calc_stats()`, `dim_on_top()`, `dim_turn()`, `dim_park_on_top()` and `dim_park_tired()`; the `u32` wrap of the event counter and the 32-bit `BIT_GAP` are kept as C computes them |
 | `lib/dim/rdma_dim.c` | `lib/src/dim.rs` | done | `Dim::rdma_dim()` and its decision, step and stats-compare helpers, with the same early exits as the C switch |
-| `include/linux/dim.h` (DIM helpers) | `lib/src/dim.rs` | partial | the enums, `struct dim`, the sample helpers and the macros; the net DIM profile API and the irq-moderation calls wait for `net/` |
+| `include/linux/dim.h` | `lib/src/dim.rs` | partial | `DIM helpers`: the enums, `struct dim`, the sample helpers and the macros; the net DIM profile API and the irq-moderation calls wait for `net/`|
 | DIM tests | `lib/tests/dim_test.rs` | test | the 10% significance rule, the window arithmetic, the turn and park rules, and the RDMA windows: a climb after a 10%+ gain, the edge turn, the start sample kept before 64 events, and the u16 counter wrap |
 | `lib/zstd/common/error_private.c` | `lib/src/zstd_error.rs` | done | `err_get_error_string()` with the message for every enum value and the unnamed default; the `ZSTD_STRIP_ERROR_STRINGS` build is not ported |
 | `include/linux/zstd_errors.h` | `lib/src/zstd_error.rs` | done | the codes as `u32` constants, `is_error()` and `get_error_code()` on the `size_t` error encoding |
